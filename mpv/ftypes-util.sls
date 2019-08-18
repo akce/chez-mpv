@@ -2,16 +2,22 @@
 ;; Released into the public domain.
 (library (mpv ftypes-util)
   (export
+   u8 u8* u8**
    c_funcs
    enum
    locate-library-object
    ;; byte/string array handling functions.
    u8*->string u8**->string-list
    string->u8* string-list->u8**
+   free-u8**
    ;; Chez scheme re-exports. Saves client code from having to import these themselves.
    define-ftype load-shared-object)
   (import
    (chezscheme))
+
+  (define-ftype u8 unsigned-8)
+  (define-ftype u8* (* u8))
+  (define-ftype u8** (* u8*))
 
   ;; [syntax] c_funcs: converts scheme-like function names to c-like function names before passing to foreign-procedure.
   ;; ie, word separating hyphens are converted to underscores for c.
@@ -83,7 +89,7 @@
   ;; [proc] return scheme string object as a ftypes u8* memory block.
   (define string->u8*
     (lambda (str)
-      ;; foreign-alloc every string and copy in the bytes.
+      ;; foreign-alloc string and copy in the bytes.
       (let* ([bv (string->utf8 str)]
              [len (bytevector-length bv)])
         (let ([ret
@@ -96,25 +102,40 @@
           (foreign-set! 'unsigned-8 ret len 0)	;; null terminate.
           ret))))
 
-  ;; [proc] return scheme string list as a ftypes char** array block.
   (define string-list->u8**
     (lambda (str*)
-      (let ([len (length str*)])
+      (define string->u8*/null
+        (lambda (str)
+          (if str
+            (string->u8* str)
+            0)))
+      (let ([len (length str*)]
+            [ptr-sz (ftype-sizeof void*)])
         (do ([i 0 (+ i 1)]
-             [v (foreign-alloc (* len (ftype-sizeof void*)))
-                (let ([fstr (string->u8* (list-ref str* i))])
-                  (foreign-set! 'void* v (* i (ftype-sizeof void*)) fstr)
+             [v (foreign-alloc (* len ptr-sz))
+                (let ([fstr (string->u8*/null (list-ref str* i))])
+                  (foreign-set! 'void* v (* i ptr-sz) fstr)
                   v)])
             ((= i len) v)))))
 
   (define free-u8**
-    (lambda (u8** len)
+    (case-lambda
+     ([u8**]
+      (let loop ([i 0])
+        (let ([p (foreign-ref 'void* u8** (* i (ftype-sizeof void*)))])
+          (cond
+           [(fx=? p 0)
+            ;; free containing u8** block.
+            (foreign-free u8**)]
+           [else
+            ;; free individual u8 pointers.
+            (foreign-free p)
+            (loop (fx+ i 1))]))))
+     ([u8** len]
       ;; free individual u8 pointers.
       (for-each
        (lambda (i)
          (foreign-free (foreign-ref 'void* u8** (* i (ftype-sizeof void*)))))
        (iota len))
       ;; free containing u8** block.
-      (foreign-free u8**)))
-
-  )
+      (foreign-free u8**)))))

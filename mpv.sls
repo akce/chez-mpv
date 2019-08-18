@@ -1,5 +1,8 @@
 (library (mpv)
   (export
+   mpv-play mpv-pause mpv-unpause mpv-seek mpv-stop
+   current-mpv-handle
+
    mpv-client-api-version
    mpv-error-string
    mpv-free
@@ -51,13 +54,11 @@
    )
   (import
    (rnrs)
-   (mpv ftypes-util))
+   (mpv ftypes-util)
+   (only (chezscheme) make-parameter))
 
   (define load-lib (load-shared-object "libmpv.so"))
 
-  (define-ftype u8 unsigned-8)
-  (define-ftype u8* (* u8))
-  (define-ftype u8** (* u8*))
   (define-ftype mpv-handle void*)
 
   (enum mpv-error
@@ -207,8 +208,8 @@
    (mpv-error-string		(int)					string)
    (mpv-free			(void*)					void)
    (mpv-client-name		(mpv-handle)				string)
-   (mpv-create			()					mpv-handle)
-   (mpv-initialize		(mpv-handle)				int)
+   (mpv_create			()					mpv-handle)
+   (mpv_initialize		(mpv-handle)				int)
    (mpv-destroy			(mpv-handle)				void)
    (mpv-terminate-destroy	(mpv-handle)				void)
    (mpv-create-client		(mpv-handle string)			mpv-handle)
@@ -218,7 +219,7 @@
    (mpv-free-node-contents	((* mpv-node))				void)
    (mpv-set-option		(mpv-handle string int void*)		int)
    (mpv-set-option-string	(mpv-handle string string)		int)
-   (mpv-command			(mpv-handle (* u8*))			int)
+   (mpv_command			(mpv-handle void*)			int)
    (mpv-command-node		(mpv-handle (* mpv-node) (* mpv-node))	int)
    (mpv-command-string		(mpv-handle string)			int)
    (mpv-command-async		(mpv-handle unsigned-64 (* u8*))	int)
@@ -240,4 +241,42 @@
    (mpv-set-wakeup-callback	(mpv-handle (* wakeup-cb-t) void*)	void)
    (mpv-wait-async-requests	(mpv-handle)				void)
    (mpv-hook-add		(mpv-handle unsigned-64 string int)	int)
-   (mpv-hook-continue		(mpv-handle unsigned-64)		int)))
+   (mpv-hook-continue		(mpv-handle unsigned-64)		int))
+
+  (define current-mpv-handle (make-parameter #f))
+
+  (define mpv-create
+    (lambda ()
+      (current-mpv-handle (mpv_create))
+      (current-mpv-handle)))
+
+  (define mpv-initialize
+    (lambda ()
+      (mpv_initialize (current-mpv-handle))))
+
+  (define mpv-command
+    (lambda args
+      (let ([args/c (string-list->u8** (append args '(#f)))])
+        (let ([ret (mpv_command (current-mpv-handle) args/c)])
+          (free-u8** args/c)
+          ret))))
+
+  (define mpv-play
+    (lambda (file-or-url)
+      (mpv-command "loadfile" file-or-url)))
+
+  (define mpv-pause
+    (lambda ()
+      (mpv-command "set" "pause" "yes")))
+
+  (define mpv-unpause
+    (lambda ()
+      (mpv-command "set" "pause" "no")))
+
+  (define mpv-seek
+    (lambda (seconds)
+      (mpv-command "seek" (number->string seconds))))
+
+  (define mpv-stop
+    (lambda ()
+      (mpv-command "stop"))))
