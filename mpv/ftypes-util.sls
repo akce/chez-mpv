@@ -11,7 +11,7 @@
    string->u8* string-list->u8**
    free-u8**
    ;; Chez scheme re-exports. Saves client code from having to import these themselves.
-   define-ftype load-shared-object)
+   define-ftype ftype-ref load-shared-object)
   (import
    (chezscheme))
 

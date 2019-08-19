@@ -3,6 +3,8 @@
    mpv-play mpv-pause mpv-unpause mpv-seek mpv-stop
    current-mpv-handle
 
+   get-mpv-event-id
+
    mpv-client-api-version
    mpv-error-string
    mpv-free
@@ -41,6 +43,8 @@
    mpv-wait-async-requests
    mpv-hook-add
    mpv-hook-continue
+   ;; deprecated
+   mpv-get-wakeup-pipe
 
    MPV_ERROR_SUCCESS MPV_ERROR_EVENT_QUEUE_FULL MPV_ERROR_NOMEM MPV_ERROR_UNINITIALIZED MPV_ERROR_INVALID_PARAMETER MPV_ERROR_OPTION_NOT_FOUND MPV_ERROR_OPTION_FORMAT MPV_ERROR_OPTION_ERROR MPV_ERROR_PROPERTY_NOT_FOUND MPV_ERROR_PROPERTY_FORMAT MPV_ERROR_PROPERTY_UNAVAILABLE MPV_ERROR_PROPERTY_ERROR MPV_ERROR_COMMAND MPV_ERROR_LOADING_FAILED MPV_ERROR_AO_INIT_FAILED MPV_ERROR_VO_INIT_FAILED MPV_ERROR_NOTHING_TO_PLAY MPV_ERROR_UNKNOWN_FORMAT MPV_ERROR_UNSUPPORTED MPV_ERROR_NOT_IMPLEMENTED MPV_ERROR_GENERIC
 
@@ -241,9 +245,15 @@
    (mpv-set-wakeup-callback	(mpv-handle (* wakeup-cb-t) void*)	void)
    (mpv-wait-async-requests	(mpv-handle)				void)
    (mpv-hook-add		(mpv-handle unsigned-64 string int)	int)
-   (mpv-hook-continue		(mpv-handle unsigned-64)		int))
+   (mpv-hook-continue		(mpv-handle unsigned-64)		int)
+   ;; deprecated
+   (mpv-get-wakeup-pipe		(mpv-handle)				int))
 
   (define current-mpv-handle (make-parameter #f))
+
+  (define get-mpv-event-id
+    (lambda (ev)
+      (ftype-ref mpv-event (event-id) ev)))
 
   (define mpv-create
     (lambda ()
