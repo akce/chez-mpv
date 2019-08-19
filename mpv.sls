@@ -1,6 +1,6 @@
 (library (mpv)
   (export
-   mpv-play mpv-pause mpv-unpause mpv-seek mpv-stop
+   mpv-play mpv-pause mpv-unpause mpv-toggle-pause mpv-seek mpv-stop
    current-mpv-handle
 
    get-mpv-event-id
@@ -278,6 +278,10 @@
   (define mpv-pause
     (lambda ()
       (mpv-command "set" "pause" "yes")))
+
+  (define mpv-toggle-pause
+    (lambda ()
+      (mpv-command "cycle" "pause")))
 
   (define mpv-unpause
     (lambda ()
