@@ -4,6 +4,9 @@
    current-mpv-handle
 
    get-mpv-event-id
+   mpv-get-property/flag
+   mpv-get-property/long
+   mpv-get-property/string
 
    mpv-client-api-version
    mpv-error-string
@@ -254,6 +257,39 @@
   (define get-mpv-event-id
     (lambda (ev)
       (ftype-ref mpv-event (event-id) ev)))
+
+  (define mpv-get-property/flag
+    (lambda (property)
+      (alloc ([flag int])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_FLAG flag)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            "error"
+            (let ([num (foreign-ref 'int flag 0)])
+              (if (= num 0)
+                #f
+                #t)))))))
+
+  (define mpv-get-property/long
+    (lambda (property)
+      (alloc ([num integer-64])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_INT64 num)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            "error"
+            (foreign-ref 'integer-64 num 0))))))
+
+  (define mpv-get-property/string
+    (lambda (property)
+      (alloc ([str u8*])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_STRING str)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            "error"
+            (let* ([ptr (foreign-ref 'void* str 0)]
+                   [ret (u8*->string ptr)])
+              (mpv-free ptr)
+              ret))))))
 
   (define mpv-create
     (lambda ()

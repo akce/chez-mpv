@@ -3,6 +3,7 @@
 (library (mpv ftypes-util)
   (export
    u8 u8* u8**
+   alloc
    c_funcs
    enum
    locate-library-object
@@ -11,13 +12,39 @@
    string->u8* string-list->u8**
    free-u8**
    ;; Chez scheme re-exports. Saves client code from having to import these themselves.
-   define-ftype ftype-ref load-shared-object)
+   define-ftype foreign-alloc foreign-free foreign-ref ftype-ref ftype-sizeof load-shared-object)
   (import
    (chezscheme))
 
   (define-ftype u8 unsigned-8)
   (define-ftype u8* (* u8))
   (define-ftype u8** (* u8*))
+
+  ;; [syntax] (alloc ((var varptr type)) ...)
+  (define-syntax alloc
+    (syntax-rules ()
+      [(_ ((var type) ...) first rest ...)
+       (let ([var (foreign-alloc (ftype-sizeof type))] ...)
+         (let ([r (begin first rest ...)])
+           (foreign-free var) ...
+           r))]
+      [(_ ((var varptr type) ...) first rest ...)
+       (let ([var (foreign-alloc (ftype-sizeof type))] ...)
+         (let ([varptr (make-ftype-pointer type var)] ...)
+           (let ([r (begin first rest ...)])
+             ;; make-ftype-pointer implicitly locks var, so manually unlock before free.
+             (unlock-object var) ...
+             (foreign-free var) ...
+             r)))]
+      [(_ ((var varptr type num) ...) first rest ...)
+       ;; Ensure num is at least 1, that's a requirement of foreign-alloc.
+       (let ([var (foreign-alloc (* (if (= num 0) 1 num) (ftype-sizeof type)))] ...)
+         (let ([varptr (make-ftype-pointer type var)] ...)
+           (let ([r (begin first rest ...)])
+             ;; make-ftype-pointer implicitly locks var, so manually unlock before free.
+             (unlock-object var) ...
+             (foreign-free var) ...
+             r)))]))
 
   ;; [syntax] c_funcs: converts scheme-like function names to c-like function names before passing to foreign-procedure.
   ;; ie, word separating hyphens are converted to underscores for c.
