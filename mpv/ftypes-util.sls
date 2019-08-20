@@ -12,7 +12,7 @@
    string->u8* string-list->u8**
    free-u8**
    ;; Chez scheme re-exports. Saves client code from having to import these themselves.
-   define-ftype foreign-alloc foreign-free foreign-ref ftype-ref ftype-sizeof load-shared-object)
+   define-ftype foreign-alloc foreign-free foreign-ref ftype-pointer-address ftype-&ref ftype-ref ftype-sizeof load-shared-object)
   (import
    (chezscheme))
 

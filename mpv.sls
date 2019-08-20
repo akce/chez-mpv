@@ -7,6 +7,7 @@
    mpv-get-property/flag
    mpv-get-property/long
    mpv-get-property/string
+   mpv-get-property/node
 
    mpv-client-api-version
    mpv-error-string
@@ -181,23 +182,24 @@
      [log-level	int]))
   (define-ftype mpv-event-log-message* (* mpv-event-log-message))
 
-  (define-ftype mpv-node
-    (struct
-     [u	(union
-         [string	u8*]
-         [flag		int]
-         [int64		integer-64]
-         [double	double]
-         [node-list	(* mpv-node)]
-         [ba		mpv-byte-array*])]
-     [mpv-format	int]))
+  (define-ftype
+    [mpv-node
+     (struct
+      [u
+       (union
+        [string	u8*]
+        [flag		int]
+        [int64		integer-64]
+        [double	double]
+        [node-list	(* mpv-node-list)]
+        [ba		mpv-byte-array*])]
+      [mpv-format	int])]
+    [mpv-node-list
+     (struct
+      [num	int]
+      [values	(* mpv-node)]
+      [keys	u8**])])
   (define-ftype mpv-node* (* mpv-node))
-
-  (define-ftype mpv-node-list
-    (struct
-     [num	int]
-     [values	mpv-node*]
-     [keys	u8**]))
   (define-ftype mpv-node-list* (* mpv-node-list))
 
   (define-ftype mpv-event-property
@@ -258,6 +260,12 @@
     (lambda (ev)
       (ftype-ref mpv-event (event-id) ev)))
 
+  (define int->bool
+    (lambda (num)
+      (if (= num 0)
+          #f
+          #t)))
+
   (define mpv-get-property/flag
     (lambda (property)
       (alloc ([flag int])
@@ -265,10 +273,7 @@
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
-            (let ([num (foreign-ref 'int flag 0)])
-              (if (= num 0)
-                #f
-                #t)))))))
+            (int->bool (foreign-ref 'int flag 0)))))))
 
   (define mpv-get-property/long
     (lambda (property)
@@ -290,6 +295,59 @@
                    [ret (u8*->string ptr)])
               (mpv-free ptr)
               ret))))))
+
+  (define mpv-get-property/node
+    (lambda (property)
+      (alloc ([data &data mpv-node])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_NODE data)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            (mpv-error-string rc)
+            (let* ([ret (node->scheme &data)])
+              #;(mpv-free ptr)
+              ret))))))
+
+  (define-syntax switch
+    (syntax-rules ()
+      [(_ var (val1 body1 ...) (valn bodyn ...) ...)
+       (let ([v var])
+         (cond
+          [(equal? v val1) body1 ...]
+          [(equal? v valn) bodyn ...] ...))]))
+
+  (define node->scheme
+    (lambda (node)
+      (switch (ftype-ref mpv-node (mpv-format) node)
+       [MPV_FORMAT_STRING
+        (u8*->string (ftype-pointer-address (ftype-ref mpv-node (u string) node)))]
+       [MPV_FORMAT_FLAG
+        (int->bool (ftype-ref mpv-node (u flag) node))]
+       [MPV_FORMAT_INT64
+        (ftype-ref mpv-node (u int64) node)]
+       [MPV_FORMAT_DOUBLE
+        (ftype-ref mpv-node (u double) node)]
+       [MPV_FORMAT_NODE_MAP
+        (node-map->alist (ftype-ref mpv-node (u node-list) node))]
+       [MPV_FORMAT_NODE_ARRAY
+        (node->scheme (ftype-ref mpv-node (u node-list) node))]
+       [MPV_FORMAT_NODE
+        (node->scheme (ftype-ref mpv-node (u node-list) node))])))
+
+  (define node-map->alist
+    (lambda (node-list)
+      (let ([num (ftype-ref mpv-node-list (num) node-list)])
+        (let loop ([i 0] [acc '()])
+          (cond
+           [(= i num)
+            (reverse acc)]
+           [else
+            (loop (+ i 1) (cons
+                           (cons
+                            (u8*->string
+                             (ftype-pointer-address (ftype-ref mpv-node-list (keys i) node-list)))
+                            (node->scheme
+                             (ftype-&ref mpv-node-list (values i) node-list)))
+                           acc))])))))
 
   (define mpv-create
     (lambda ()
