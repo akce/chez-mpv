@@ -336,12 +336,13 @@
   (define node-map->alist
     (lambda (node-list)
       (let ([num (ftype-ref mpv-node-list (num) node-list)])
-        (let loop ([i 0] [acc '()])
+        ;; slight optimisation: build the list from the back since we already know the size.
+        ;; Saves having to reverse the accumulated list before returning.
+        (let loop ([i (- num 1)] [acc '()])
           (cond
-           [(= i num)
-            (reverse acc)]
+           [(< i 0) acc]
            [else
-            (loop (+ i 1) (cons
+            (loop (- i 1) (cons
                            (cons
                             (u8*->string
                              (ftype-pointer-address (ftype-ref mpv-node-list (keys i) node-list)))
