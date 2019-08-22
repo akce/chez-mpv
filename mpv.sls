@@ -238,7 +238,7 @@
    (mpv-command-string		(mpv-handle string)			int)
    (mpv-command-async		(mpv-handle unsigned-64 (* u8*))	int)
    (mpv-command-node-async	(mpv-handle unsigned-64 (* mpv-node))	int)
-   (mpv-set-property		(mpv-handle string int void*)		int)
+   (mpv_set_property		(mpv-handle string int void*)		int)
    (mpv-set-property-string	(mpv-handle string string)		int)
    (mpv-set-property-async	(mpv-handle unsigned-64 string int void*)	int)
    (mpv-get-property		(mpv-handle string int void*)		int)
@@ -375,23 +375,33 @@
     (lambda (property value)
       (alloc ([i &i double])
         (ftype-set! double () &i value)
-        (mpv-set-property (current-mpv-handle) property MPV_FORMAT_DOUBLE i))))
+        (mpv_set_property (current-mpv-handle) property MPV_FORMAT_DOUBLE i))))
 
   (define mpv-set-property/flag
     (lambda (property value)
       (alloc ([i &i int])
         (ftype-set! int () &i (if value 1 0))
-        (mpv-set-property (current-mpv-handle) property MPV_FORMAT_FLAG i))))
+        (mpv_set_property (current-mpv-handle) property MPV_FORMAT_FLAG i))))
 
   (define mpv-set-property/int
     (lambda (property value)
       (alloc ([i &i integer-64])
         (ftype-set! integer-64 () &i value)
-        (mpv-set-property (current-mpv-handle) property MPV_FORMAT_INT64 i))))
+        (mpv_set_property (current-mpv-handle) property MPV_FORMAT_INT64 i))))
 
   (define mpv-set-property/string
     (lambda (property value)
       (mpv-set-property-string (current-mpv-handle) property value)))
+
+  (define mpv-set-property
+    (lambda (property value)
+      (define (setter)
+        (cond
+         [(string? value)	mpv-set-property/string]
+         [(integer? value)	mpv-set-property/int]
+         [(boolean? value)	mpv-set-property/flag]
+         [(flonum? value)	mpv-set-property/double]))
+      ((setter) property value)))
 
   (define mpv-play
     (lambda (file-or-url)
