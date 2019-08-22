@@ -9,7 +9,10 @@
    mpv-get-property/string
    mpv-get-property/node
 
+   mpv-set-property/double
    mpv-set-property/flag
+   mpv-set-property/int
+   mpv-set-property/string
 
    mpv-client-api-version
    mpv-error-string
@@ -368,11 +371,27 @@
           (free-u8** args/c)
           ret))))
 
+  (define mpv-set-property/double
+    (lambda (property value)
+      (alloc ([i &i double])
+        (ftype-set! double () &i value)
+        (mpv-set-property (current-mpv-handle) property MPV_FORMAT_DOUBLE i))))
+
   (define mpv-set-property/flag
     (lambda (property value)
       (alloc ([i &i int])
         (ftype-set! int () &i (if value 1 0))
         (mpv-set-property (current-mpv-handle) property MPV_FORMAT_FLAG i))))
+
+  (define mpv-set-property/int
+    (lambda (property value)
+      (alloc ([i &i integer-64])
+        (ftype-set! integer-64 () &i value)
+        (mpv-set-property (current-mpv-handle) property MPV_FORMAT_INT64 i))))
+
+  (define mpv-set-property/string
+    (lambda (property value)
+      (mpv-set-property-string (current-mpv-handle) property value)))
 
   (define mpv-play
     (lambda (file-or-url)
