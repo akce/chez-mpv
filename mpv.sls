@@ -9,6 +9,8 @@
    mpv-get-property/string
    mpv-get-property/node
 
+   mpv-set-property/flag
+
    mpv-client-api-version
    mpv-error-string
    mpv-free
@@ -366,13 +368,19 @@
           (free-u8** args/c)
           ret))))
 
+  (define mpv-set-property/flag
+    (lambda (property value)
+      (alloc ([i &i int])
+        (ftype-set! int () &i (if value 1 0))
+        (mpv-set-property (current-mpv-handle) property MPV_FORMAT_FLAG i))))
+
   (define mpv-play
     (lambda (file-or-url)
       (mpv-command "loadfile" file-or-url)))
 
   (define mpv-pause
     (lambda ()
-      (mpv-command "set" "pause" "yes")))
+      (mpv-set-property/flag "pause" #t)))
 
   (define mpv-toggle-pause
     (lambda ()
@@ -380,7 +388,7 @@
 
   (define mpv-unpause
     (lambda ()
-      (mpv-command "set" "pause" "no")))
+      (mpv-set-property/flag "pause" #f)))
 
   (define mpv-seek
     (lambda (seconds)
