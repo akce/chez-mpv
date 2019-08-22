@@ -261,6 +261,22 @@
 
   (define current-mpv-handle (make-parameter #f))
 
+  (define mpv-create
+    (lambda ()
+      (current-mpv-handle (mpv_create))
+      (current-mpv-handle)))
+
+  (define mpv-initialize
+    (lambda ()
+      (mpv_initialize (current-mpv-handle))))
+
+  (define mpv-command
+    (lambda args
+      (let ([args/c (string-list->u8** (append args '(#f)))])
+        (let ([ret (mpv_command (current-mpv-handle) args/c)])
+          (free-u8** args/c)
+          ret))))
+
   (define get-mpv-event-id
     (lambda (ev)
       (ftype-ref mpv-event (event-id) ev)))
@@ -270,47 +286,6 @@
       (if (= num 0)
           #f
           #t)))
-
-  (define mpv-get-property/flag
-    (lambda (property)
-      (alloc ([flag int])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_FLAG flag)])
-          (if (< rc 0)
-            ;; error - TODO raise an exception.
-            "error"
-            (int->bool (foreign-ref 'int flag 0)))))))
-
-  (define mpv-get-property/long
-    (lambda (property)
-      (alloc ([num integer-64])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_INT64 num)])
-          (if (< rc 0)
-            ;; error - TODO raise an exception.
-            "error"
-            (foreign-ref 'integer-64 num 0))))))
-
-  (define mpv-get-property/string
-    (lambda (property)
-      (alloc ([str u8*])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_STRING str)])
-          (if (< rc 0)
-            ;; error - TODO raise an exception.
-            "error"
-            (let* ([ptr (foreign-ref 'void* str 0)]
-                   [ret (u8*->string ptr)])
-              (mpv-free ptr)
-              ret))))))
-
-  (define mpv-get-property/node
-    (lambda (property)
-      (alloc ([data &data mpv-node])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_NODE data)])
-          (if (< rc 0)
-            ;; error - TODO raise an exception.
-            (mpv-error-string rc)
-            (let* ([ret (node->scheme &data)])
-              #;(mpv-free ptr)
-              ret))))))
 
   (define-syntax switch
     (syntax-rules ()
@@ -355,21 +330,46 @@
                              (ftype-&ref mpv-node-list (values i) node-list)))
                            acc))])))))
 
-  (define mpv-create
-    (lambda ()
-      (current-mpv-handle (mpv_create))
-      (current-mpv-handle)))
+  (define mpv-get-property/flag
+    (lambda (property)
+      (alloc ([flag int])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_FLAG flag)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            "error"
+            (int->bool (foreign-ref 'int flag 0)))))))
 
-  (define mpv-initialize
-    (lambda ()
-      (mpv_initialize (current-mpv-handle))))
+  (define mpv-get-property/long
+    (lambda (property)
+      (alloc ([num integer-64])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_INT64 num)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            "error"
+            (foreign-ref 'integer-64 num 0))))))
 
-  (define mpv-command
-    (lambda args
-      (let ([args/c (string-list->u8** (append args '(#f)))])
-        (let ([ret (mpv_command (current-mpv-handle) args/c)])
-          (free-u8** args/c)
-          ret))))
+  (define mpv-get-property/string
+    (lambda (property)
+      (alloc ([str u8*])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_STRING str)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            "error"
+            (let* ([ptr (foreign-ref 'void* str 0)]
+                   [ret (u8*->string ptr)])
+              (mpv-free ptr)
+              ret))))))
+
+  (define mpv-get-property/node
+    (lambda (property)
+      (alloc ([data &data mpv-node])
+        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_NODE data)])
+          (if (< rc 0)
+            ;; error - TODO raise an exception.
+            (mpv-error-string rc)
+            (let* ([ret (node->scheme &data)])
+              #;(mpv-free ptr)
+              ret))))))
 
   (define mpv-set-property/double
     (lambda (property value)
