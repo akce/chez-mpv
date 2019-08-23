@@ -288,7 +288,7 @@
 
   (define int->bool
     (lambda (num)
-      (if (= num 0)
+      (if (fx=? num 0)
           #f
           #t)))
 
@@ -297,8 +297,8 @@
       [(_ var (val1 body1 ...) (valn bodyn ...) ...)
        (let ([v var])
          (cond
-          [(equal? v val1) body1 ...]
-          [(equal? v valn) bodyn ...] ...))]))
+          [(fx=? v val1) body1 ...]
+          [(fx=? v valn) bodyn ...] ...))]))
 
   (define node->scheme
     (lambda (node)
