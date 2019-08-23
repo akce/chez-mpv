@@ -1,3 +1,5 @@
+;; Integration between chez-mpv and chez-libev.
+;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
 (library (mpv ev)
   (export register-mpv-event-handler)
   (import

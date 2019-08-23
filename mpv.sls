@@ -1,3 +1,5 @@
+;; libmpv bindings for Chez scheme.
+;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
 (library (mpv)
   (export
    mpv-play mpv-pause mpv-unpause mpv-toggle-pause mpv-seek mpv-stop

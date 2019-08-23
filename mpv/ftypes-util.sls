@@ -1,5 +1,5 @@
-;; chez scheme ftypes FFI util functions.
-;; Released into the public domain.
+;; ftypes util functions chez scheme.
+;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
 (library (mpv ftypes-util)
   (export
    u8 u8* u8**

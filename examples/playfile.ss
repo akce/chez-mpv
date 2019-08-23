@@ -1,6 +1,8 @@
 #! /usr/bin/scheme --program
 
 ;; A simple media player.
+;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
+
 ;; Demonstrates how an mpv based player could be written using chez-libev for event handling.
 
 (import
