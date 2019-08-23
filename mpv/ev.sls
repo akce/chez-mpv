@@ -10,18 +10,17 @@
 
   (define register-mpv-event-handler
     (lambda (io-callback)
-      (let* ([mh (current-mpv-handle)]
-             [fd (mpv-get-wakeup-pipe mh)]
+      (let* ([fd (mpv-get-wakeup-pipe (current-mpv-handle))]
              [port (open-fd-input-port fd)])
         (ev-io fd EV_READ
           (lambda (w revent)
             (when (input-port-ready? port)
               (clear-input-port port)
-              (let loop ([ev (mpv-wait-event mh 0.0)])
+              (let loop ([ev (mpv-wait-event 0.0)])
                 (let ([eid (get-mpv-event-id ev)])
                   (cond
                    [(equal? eid MPV_EVENT_NONE)
                     #t]
                    [else
                     (io-callback eid)
-                    (loop (mpv-wait-event mh 0.0))]))))))))))
+                    (loop (mpv-wait-event 0.0))]))))))))))

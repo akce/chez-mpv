@@ -255,7 +255,7 @@
    (mpv-event-name		(int)					string)
    (mpv-request-event		(mpv-handle int int)			int)
    (mpv-request-log-messages	(mpv-handle string)			int)
-   (mpv-wait-event		(mpv-handle double)			(* mpv-event))
+   (mpv_wait_event		(mpv-handle double)			(* mpv-event))
    (mpv-wakeup			(mpv-handle)				void)
    (mpv-set-wakeup-callback	(mpv-handle (* wakeup-cb-t) void*)	void)
    (mpv-wait-async-requests	(mpv-handle)				void)
@@ -406,4 +406,8 @@
          [(integer? value)	mpv-set-property/int]
          [(boolean? value)	mpv-set-property/flag]
          [(flonum? value)	mpv-set-property/double]))
-      ((setter) property value))))
+      ((setter) property value)))
+
+  (define mpv-wait-event
+    (lambda (timeout)
+      (mpv_wait_event (current-mpv-handle) timeout))))
