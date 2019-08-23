@@ -21,7 +21,10 @@
 
 (define mpv-handler
   (lambda (eid)
-    (display (mpv-event-name eid))(newline)))
+    (display (mpv-event-name eid))(newline)
+    (cond
+     [(equal? eid MPV_EVENT_METADATA_UPDATE)
+      (show-metadata)])))
 
 (define stdin-handler
   (lambda (w rev)
@@ -40,11 +43,15 @@
            (display "duration: ")(display (mpv-get-property/long "duration"))(newline)
            (display "media-title: ")(display (mpv-get-property/string "media-title"))(newline)]
           [(#\t)
-           (display "tags:")(display (mpv-get-property/node "metadata"))(newline)]
+           (show-metadata)]
           [(#\p)
            (mpv-toggle-pause)]
           [(#\s)
            (mpv-stop)])]))))
+
+(define show-metadata
+  (lambda ()
+    (display "tags:")(display (mpv-get-property/node "metadata"))(newline)))
 
 (let ([argv (command-line)])
   (cond
