@@ -55,6 +55,30 @@
   (lambda ()
     (display "tags:")(display (mpv-get-property/node "metadata"))(newline)))
 
+(define mpv-play
+  (lambda (file-or-url)
+    (mpv-command "loadfile" file-or-url)))
+
+(define mpv-pause
+  (lambda ()
+    (mpv-set-property/flag "pause" #t)))
+
+(define mpv-toggle-pause
+  (lambda ()
+    (mpv-command "cycle" "pause")))
+
+(define mpv-unpause
+  (lambda ()
+    (mpv-set-property/flag "pause" #f)))
+
+(define mpv-seek
+  (lambda (seconds)
+    (mpv-command "seek" (number->string seconds))))
+
+(define mpv-stop
+  (lambda ()
+    (mpv-command "stop")))
+
 (let ([argv (command-line)])
   (cond
    [(equal? 2 (length argv))

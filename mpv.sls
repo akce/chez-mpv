@@ -2,7 +2,6 @@
 ;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
 (library (mpv)
   (export
-   mpv-play mpv-pause mpv-unpause mpv-toggle-pause mpv-seek mpv-stop
    current-mpv-handle
 
    get-mpv-event-id
@@ -407,28 +406,4 @@
          [(integer? value)	mpv-set-property/int]
          [(boolean? value)	mpv-set-property/flag]
          [(flonum? value)	mpv-set-property/double]))
-      ((setter) property value)))
-
-  (define mpv-play
-    (lambda (file-or-url)
-      (mpv-command "loadfile" file-or-url)))
-
-  (define mpv-pause
-    (lambda ()
-      (mpv-set-property/flag "pause" #t)))
-
-  (define mpv-toggle-pause
-    (lambda ()
-      (mpv-command "cycle" "pause")))
-
-  (define mpv-unpause
-    (lambda ()
-      (mpv-set-property/flag "pause" #f)))
-
-  (define mpv-seek
-    (lambda (seconds)
-      (mpv-command "seek" (number->string seconds))))
-
-  (define mpv-stop
-    (lambda ()
-      (mpv-command "stop"))))
+      ((setter) property value))))
