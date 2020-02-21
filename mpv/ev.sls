@@ -1,5 +1,5 @@
 ;; Integration between chez-mpv and chez-libev.
-;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
+;; Copyright (c) 2019-2020 Akce. License: GPLv3, see COPYING for details.
 (library (mpv ev)
   (export register-mpv-event-handler)
   (import
@@ -12,7 +12,7 @@
     (lambda (io-callback)
       (let* ([fd (mpv-get-wakeup-pipe (current-mpv-handle))]
              [port (open-fd-input-port fd)])
-        (ev-io fd EV_READ
+        (ev-io fd (evmask 'READ)
           (lambda (w revent)
             (when (input-port-ready? port)
               (clear-input-port port)

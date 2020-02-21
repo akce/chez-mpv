@@ -1,7 +1,7 @@
 #! /usr/bin/scheme --program
 
 ;; A simple media player.
-;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
+;; Copyright (c) 2019-2020 Akce. License: GPLv3, see COPYING for details.
 
 ;; Demonstrates how an mpv based player could be written using chez-libev for event handling.
 
@@ -18,7 +18,7 @@
     (mpv-create)
     (mpv-set-property "audio-display" #f)
     (mpv-initialize)
-    (ev-io stdin-fd EV_READ stdin-handler)
+    (ev-io stdin-fd (evmask 'READ) stdin-handler)
     (register-mpv-event-handler mpv-handler)))
 
 (define mpv-handler
@@ -35,7 +35,7 @@
        [(eof-object? in)
         (display "goodbye")(newline)
         (ev-io-stop w)
-        (ev-break EVBREAK_ALL)]
+        (ev-break (evbreak 'ALL))]
        [else
         (case (string-ref in 0)
           [(#\i)
