@@ -62,6 +62,7 @@
    ;; enums
    mpv-error
    mpv-event-type
+   mpv-event-deprecated
    mpv-file-end-reason
    mpv-format
    mpv-log-level
@@ -109,7 +110,6 @@
     (end-file			7)
     (file-loaded		8)
     (idle			11)
-    (tick			14)
     (client-message		16)
     (video-reconfig		17)
     (audio-reconfig		18)
@@ -118,8 +118,23 @@
     (property-change		22)
     (queue-overflow		24)
     (hook			25)
-    ;; deprecated
-    (metadata-update		19))
+    )
+
+  ;; Deprecated event types.
+  ;; Most (but not all) of these can be observed as properties.
+  ;; See <mpv/client.h> for details.
+  ;; This exists here because mpv still generates some of these events so it's useful
+  ;; for client code to ignore them and/or be aware of those likely to disappear in future!
+  (define-enum mpv-event-deprecated
+    (tracks-changed		9)
+    (track-switched		10)
+    (pause			12)
+    (unpause			13)
+    (tick			14)
+    (script-input-dispatch	15)
+    (metadata-update		19)
+    (chapter-change		23)
+    )
 
   (define-enum mpv-file-end-reason
     (eof			0)
