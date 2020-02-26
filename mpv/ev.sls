@@ -19,7 +19,7 @@
               (let loop ([ev (mpv-wait-event 0.0)])
                 (let ([eid (get-mpv-event-id ev)])
                   (cond
-                   [(equal? eid MPV_EVENT_NONE)
+                   [(= eid (mpv-event-type none))
                     #t]
                    [else
                     (io-callback eid)

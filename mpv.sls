@@ -59,17 +59,12 @@
    ;; deprecated
    mpv-get-wakeup-pipe
 
-   MPV_ERROR_SUCCESS MPV_ERROR_EVENT_QUEUE_FULL MPV_ERROR_NOMEM MPV_ERROR_UNINITIALIZED MPV_ERROR_INVALID_PARAMETER MPV_ERROR_OPTION_NOT_FOUND MPV_ERROR_OPTION_FORMAT MPV_ERROR_OPTION_ERROR MPV_ERROR_PROPERTY_NOT_FOUND MPV_ERROR_PROPERTY_FORMAT MPV_ERROR_PROPERTY_UNAVAILABLE MPV_ERROR_PROPERTY_ERROR MPV_ERROR_COMMAND MPV_ERROR_LOADING_FAILED MPV_ERROR_AO_INIT_FAILED MPV_ERROR_VO_INIT_FAILED MPV_ERROR_NOTHING_TO_PLAY MPV_ERROR_UNKNOWN_FORMAT MPV_ERROR_UNSUPPORTED MPV_ERROR_NOT_IMPLEMENTED MPV_ERROR_GENERIC
-
-   MPV_EVENT_NONE MPV_EVENT_SHUTDOWN MPV_EVENT_LOG_MESSAGE MPV_EVENT_GET_PROPERTY_REPLY MPV_EVENT_SET_PROPERTY_REPLY MPV_EVENT_COMMAND_REPLY MPV_EVENT_START_FILE MPV_EVENT_END_FILE MPV_EVENT_FILE_LOADED MPV_EVENT_IDLE MPV_EVENT_TICK MPV_EVENT_CLIENT_MESSAGE MPV_EVENT_VIDEO_RECONFIG MPV_EVENT_AUDIO_RECONFIG MPV_EVENT_SEEK MPV_EVENT_PLAYBACK_RESTART MPV_EVENT_PROPERTY_CHANGE MPV_EVENT_QUEUE_OVERFLOW MPV_EVENT_HOOK
-   ;; deprecated
-   MPV_EVENT_METADATA_UPDATE
-
-   MPV_END_FILE_REASON_EOF MPV_END_FILE_REASON_STOP MPV_END_FILE_REASON_QUIT MPV_END_FILE_REASON_ERROR MPV_END_FILE_REASON_REDIRECT
-
-   MPV_FORMAT_NONE MPV_FORMAT_STRING MPV_FORMAT_OSD_STRING MPV_FORMAT_FLAG MPV_FORMAT_INT64 MPV_FORMAT_DOUBLE MPV_FORMAT_NODE MPV_FORMAT_NODE_ARRAY MPV_FORMAT_NODE_MAP MPV_FORMAT_BYTE_ARRAY
-
-   MPV_LOG_LEVEL_NONE MPV_LOG_LEVEL_FATAL MPV_LOG_LEVEL_ERROR MPV_LOG_LEVEL_WARN MPV_LOG_LEVEL_INFO MPV_LOG_LEVEL_V MPV_LOG_LEVEL_DEBUG MPV_LOG_LEVEL_TRACE
+   ;; enums
+   mpv-error
+   mpv-event-type
+   mpv-file-end-reason
+   mpv-format
+   mpv-log-level
    )
   (import
    (rnrs)
@@ -80,80 +75,80 @@
 
   (define-ftype mpv-handle void*)
 
-  (enum mpv-error
-    (MPV_ERROR_SUCCESS			0)
-    (MPV_ERROR_EVENT_QUEUE_FULL		-1)
-    (MPV_ERROR_NOMEM			-2)
-    (MPV_ERROR_UNINITIALIZED		-3)
-    (MPV_ERROR_INVALID_PARAMETER	-4)
-    (MPV_ERROR_OPTION_NOT_FOUND		-5)
-    (MPV_ERROR_OPTION_FORMAT		-6)
-    (MPV_ERROR_OPTION_ERROR		-7)
-    (MPV_ERROR_PROPERTY_NOT_FOUND	-8)
-    (MPV_ERROR_PROPERTY_FORMAT		-9)
-    (MPV_ERROR_PROPERTY_UNAVAILABLE	-10)
-    (MPV_ERROR_PROPERTY_ERROR		-11)
-    (MPV_ERROR_COMMAND			-12)
-    (MPV_ERROR_LOADING_FAILED		-13)
-    (MPV_ERROR_AO_INIT_FAILED		-14)
-    (MPV_ERROR_VO_INIT_FAILED		-15)
-    (MPV_ERROR_NOTHING_TO_PLAY		-16)
-    (MPV_ERROR_UNKNOWN_FORMAT		-17)
-    (MPV_ERROR_UNSUPPORTED		-18)
-    (MPV_ERROR_NOT_IMPLEMENTED		-19)
-    (MPV_ERROR_GENERIC			-20))
+  (define-enum mpv-error
+    (success			0)
+    (event-queue-full		-1)
+    (nomem			-2)
+    (uninitialized		-3)
+    (invalid-parameter		-4)
+    (option-not-found		-5)
+    (option-format		-6)
+    (option-error		-7)
+    (property-not-found		-8)
+    (property-format		-9)
+    (property-unavailable	-10)
+    (property-error		-11)
+    (command			-12)
+    (loading-failed		-13)
+    (ao-init-failed		-14)
+    (vo-init-failed		-15)
+    (nothing-to-play		-16)
+    (unknown-format		-17)
+    (unsupported		-18)
+    (not-implemented		-19)
+    (generic			-20))
 
-  (enum mpv-event-id
-    (MPV_EVENT_NONE			0)
-    (MPV_EVENT_SHUTDOWN			1)
-    (MPV_EVENT_LOG_MESSAGE		2)
-    (MPV_EVENT_GET_PROPERTY_REPLY	3)
-    (MPV_EVENT_SET_PROPERTY_REPLY	4)
-    (MPV_EVENT_COMMAND_REPLY		5)
-    (MPV_EVENT_START_FILE		6)
-    (MPV_EVENT_END_FILE			7)
-    (MPV_EVENT_FILE_LOADED		8)
-    (MPV_EVENT_IDLE			11)
-    (MPV_EVENT_TICK			14)
-    (MPV_EVENT_CLIENT_MESSAGE		16)
-    (MPV_EVENT_VIDEO_RECONFIG		17)
-    (MPV_EVENT_AUDIO_RECONFIG		18)
-    (MPV_EVENT_SEEK			20)
-    (MPV_EVENT_PLAYBACK_RESTART		21)
-    (MPV_EVENT_PROPERTY_CHANGE		22)
-    (MPV_EVENT_QUEUE_OVERFLOW		24)
-    (MPV_EVENT_HOOK			25)
+  (define-enum mpv-event-type
+    (none			0)
+    (shutdown			1)
+    (log-message		2)
+    (get-property-reply		3)
+    (set-property-reply		4)
+    (command-reply		5)
+    (start-file			6)
+    (end-file			7)
+    (file-loaded		8)
+    (idle			11)
+    (tick			14)
+    (client-message		16)
+    (video-reconfig		17)
+    (audio-reconfig		18)
+    (seek			20)
+    (playback-restart		21)
+    (property-change		22)
+    (queue-overflow		24)
+    (hook			25)
     ;; deprecated
-    (MPV_EVENT_METADATA_UPDATE		19))
+    (metadata-update		19))
 
-  (enum mpv-file-end-reason
-    (MPV_END_FILE_REASON_EOF		0)
-    (MPV_END_FILE_REASON_STOP		2)
-    (MPV_END_FILE_REASON_QUIT		3)
-    (MPV_END_FILE_REASON_ERROR		4)
-    (MPV_END_FILE_REASON_REDIRECT	5))
+  (define-enum mpv-file-end-reason
+    (eof			0)
+    (stop			2)
+    (quit			3)
+    (error			4)
+    (redirect			5))
 
-  (enum mpv-format
-    (MPV_FORMAT_NONE		0)
-    (MPV_FORMAT_STRING		1)
-    (MPV_FORMAT_OSD_STRING	2)
-    (MPV_FORMAT_FLAG		3)
-    (MPV_FORMAT_INT64		4)
-    (MPV_FORMAT_DOUBLE		5)
-    (MPV_FORMAT_NODE		6)
-    (MPV_FORMAT_NODE_ARRAY	7)
-    (MPV_FORMAT_NODE_MAP	8)
-    (MPV_FORMAT_BYTE_ARRAY	9))
+  (define-enum mpv-format
+    (none			0)
+    (string			1)
+    (osd-string			2)
+    (flag			3)
+    (int64			4)
+    (double			5)
+    (node			6)
+    (node-array			7)
+    (node-map			8)
+    (byte-array			9))
 
-  (enum mpv-log-level
-    (MPV_LOG_LEVEL_NONE		0)
-    (MPV_LOG_LEVEL_FATAL	10)
-    (MPV_LOG_LEVEL_ERROR	20)
-    (MPV_LOG_LEVEL_WARN		30)
-    (MPV_LOG_LEVEL_INFO		40)
-    (MPV_LOG_LEVEL_V		50)
-    (MPV_LOG_LEVEL_DEBUG	60)
-    (MPV_LOG_LEVEL_TRACE	70))
+  (define-enum mpv-log-level
+    (none			0)
+    (fatal			10)
+    (error			20)
+    (warn			30)
+    (info			40)
+    (v				50)
+    (debug			60)
+    (trace			70))
 
   (define-ftype mpv-byte-array
     (struct
@@ -305,19 +300,19 @@
   (define node->scheme
     (lambda (node)
       (switch (ftype-ref mpv-node (mpv-format) node)
-       [MPV_FORMAT_STRING
+       [(mpv-format string)
         (u8*->string (ftype-pointer-address (ftype-ref mpv-node (u string) node)))]
-       [MPV_FORMAT_FLAG
+       [(mpv-format flag)
         (int->bool (ftype-ref mpv-node (u flag) node))]
-       [MPV_FORMAT_INT64
+       [(mpv-format int64)
         (ftype-ref mpv-node (u int64) node)]
-       [MPV_FORMAT_DOUBLE
+       [(mpv-format double)
         (ftype-ref mpv-node (u double) node)]
-       [MPV_FORMAT_NODE_MAP
+       [(mpv-format node-map)
         (node-map->alist (ftype-ref mpv-node (u node-list) node))]
-       [MPV_FORMAT_NODE_ARRAY
+       [(mpv-format node-array)
         (node->scheme (ftype-ref mpv-node (u node-list) node))]
-       [MPV_FORMAT_NODE
+       [(mpv-format node)
         (node->scheme (ftype-ref mpv-node (u node-list) node))])))
 
   (define node-map->alist
@@ -340,7 +335,7 @@
   (define mpv-get-property/flag
     (lambda (property)
       (alloc ([flag int])
-        (let ([rc (mpv-get-property property MPV_FORMAT_FLAG flag)])
+        (let ([rc (mpv-get-property property (mpv-format flag) flag)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
@@ -349,7 +344,7 @@
   (define mpv-get-property/long
     (lambda (property)
       (alloc ([num integer-64])
-        (let ([rc (mpv-get-property property MPV_FORMAT_INT64 num)])
+        (let ([rc (mpv-get-property property (mpv-format int64) num)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
@@ -358,7 +353,7 @@
   (define mpv-get-property/string
     (lambda (property)
       (alloc ([str u8*])
-        (let ([rc (mpv-get-property property MPV_FORMAT_STRING str)])
+        (let ([rc (mpv-get-property property (mpv-format string) str)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
@@ -370,7 +365,7 @@
   (define mpv-get-property/node
     (lambda (property)
       (alloc ([data &data mpv-node])
-        (let ([rc (mpv-get-property property MPV_FORMAT_NODE data)])
+        (let ([rc (mpv-get-property property (mpv-format node) data)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             (mpv-error-string rc)
@@ -382,19 +377,19 @@
     (lambda (option value)
       (alloc ([i &i double])
         (ftype-set! double () &i value)
-        (mpv_set_option option MPV_FORMAT_DOUBLE i))))
+        (mpv_set_option option (mpv-format double) i))))
 
   (define mpv-set-option/flag
     (lambda (property value)
       (alloc ([i &i int])
         (ftype-set! int () &i (if value 1 0))
-        (mpv_set_option property MPV_FORMAT_FLAG i))))
+        (mpv_set_option property (mpv-format flag) i))))
 
   (define mpv-set-option/int
     (lambda (option value)
       (alloc ([i &i integer-64])
         (ftype-set! integer-64 () &i value)
-        (mpv_set_option option MPV_FORMAT_INT64 i))))
+        (mpv_set_option option (mpv-format int64) i))))
 
   (define mpv-set-option/string
     (lambda (property value)
@@ -414,19 +409,19 @@
     (lambda (property value)
       (alloc ([i &i double])
         (ftype-set! double () &i value)
-        (mpv_set_property property MPV_FORMAT_DOUBLE i))))
+        (mpv_set_property property (mpv-format double) i))))
 
   (define mpv-set-property/flag
     (lambda (property value)
       (alloc ([i &i int])
         (ftype-set! int () &i (if value 1 0))
-        (mpv_set_property property MPV_FORMAT_FLAG i))))
+        (mpv_set_property property (mpv-format flag) i))))
 
   (define mpv-set-property/int
     (lambda (property value)
       (alloc ([i &i integer-64])
         (ftype-set! integer-64 () &i value)
-        (mpv_set_property property MPV_FORMAT_INT64 i))))
+        (mpv_set_property property (mpv-format int64) i))))
 
   (define mpv-set-property/string
     (lambda (property value)

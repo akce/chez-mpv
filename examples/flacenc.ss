@@ -18,10 +18,10 @@
     (let loop ([ev (mpv-wait-event -1.0)])
       (let ([eid (get-mpv-event-id ev)])
         (cond
-         [(or (fx=? eid MPV_EVENT_IDLE) (fx=? eid MPV_EVENT_NONE))
+         [(or (fx=? eid (mpv-event-type idle)) (fx=? eid (mpv-event-type none)))
           (display "idle: finished")(newline)
           ;; Ensures encoded output file is properly flushed & closed before exit.
-          (mpv-terminate-destroy (current-mpv-handle))]
+          (mpv-terminate-destroy)]
          [else
           (display (mpv-event-name eid))(newline)
           (loop (mpv-wait-event -1.0))])))))

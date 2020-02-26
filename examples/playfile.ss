@@ -34,9 +34,9 @@
   (lambda (eid)
     (display (mpv-event-name eid))(newline)
     (cond
-     [(= eid MPV_EVENT_METADATA_UPDATE)
+     [(= eid (mpv-event-type metadata-update))
       (show-metadata)]
-     [(= eid MPV_EVENT_SHUTDOWN)
+     [(= eid (mpv-event-type shutdown))
       (quit)])))
 
 (define stdin-handler

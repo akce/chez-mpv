@@ -5,7 +5,7 @@
    u8 u8* u8**
    alloc
    c-function c-default-function
-   enum
+   define-enum
    locate-library-object
    ;; byte/string array handling functions.
    u8*->string u8**->string-list
@@ -109,10 +109,35 @@
                     (lambda args
                       (apply ffi-func instance args)))) ...))])))
 
-  (define-syntax enum
+  ;; [syntax] define-enum: generates a syntax transformer that evaluates the value of an enum at compile time.
+  ;; eg, using trace-define-syntax:
+  ;; > (define-enum e [a 1] [b 2] [c 3])
+  ;; |(define-enum (define-enum e (a 1) (b 2) (c 3)))
+  ;; |(define-syntax e
+  ;;    (lambda (x)
+  ;;      (syntax-case x ()
+  ;;        [(_ v) (eq? (datum v) (syntax->datum #'a)) #'1]
+  ;;        [(_ v) (eq? (datum v) (syntax->datum #'b)) #'2]
+  ;;        [(_ v) (eq? (datum v) (syntax->datum #'c)) #'3])))
+  ;; > (e a)
+  ;; 1
+  ;; > (e b)
+  ;; 2
+  ;; > (e c)
+  ;; 3
+  ;; > (e d)
+  ;; Exception: invalid syntax (e d)
+  ;; Type (debug) to enter the debugger.
+  ;; >
+  (define-syntax define-enum
     (syntax-rules ()
-      [(_ name (symbol value) ...)
-       (begin (define symbol value) ...)]))
+      [(_ group (var* val*) ...)
+       (define-syntax group
+         (lambda (x)
+           (syntax-case x ()
+             [(_ v)
+              (eq? (datum v) (syntax->datum #'var*))
+              #'val*] ...)))]))
 
   ;; [procedure] locate-library-object: find first instance of filename within (library-directories) object directories.
   ;; Returns full path of located file, including the filename itself. filename only if not found.
