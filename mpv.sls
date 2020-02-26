@@ -40,7 +40,6 @@
    mpv-command-async
    mpv-command-node-async
    mpv-set-property
-   mpv-set-property-string
    mpv-set-property-async
    mpv-get-property
    mpv-get-property-string
@@ -226,47 +225,50 @@
   (define-ftype wakeup-cb-t
     (function (void*) void))
 
-  (c_funcs
-   (mpv-client-api-version	()					unsigned-long)
-   (mpv-error-string		(int)					string)
-   (mpv-free			(void*)					void)
-   (mpv-client-name		(mpv-handle)				string)
-   (mpv_create			()					mpv-handle)
-   (mpv_initialize		(mpv-handle)				int)
-   (mpv-destroy			(mpv-handle)				void)
-   (mpv-terminate-destroy	(mpv-handle)				void)
-   (mpv-create-client		(mpv-handle string)			mpv-handle)
-   (mpv-create-weak-client	(mpv-handle string)			mpv-handle)
-   (mpv-load-config-file	(mpv-handle string)			mpv-handle)
-   (mpv-get-time-us		(mpv-handle)				integer-64)
-   (mpv-free-node-contents	((* mpv-node))				void)
-   (mpv_set_option		(mpv-handle string int void*)		int)
-   (mpv_set_option_string	(mpv-handle string string)		int)
-   (mpv_command			(mpv-handle void*)			int)
-   (mpv-command-node		(mpv-handle (* mpv-node) (* mpv-node))	int)
-   (mpv-command-string		(mpv-handle string)			int)
-   (mpv-command-async		(mpv-handle unsigned-64 (* u8*))	int)
-   (mpv-command-node-async	(mpv-handle unsigned-64 (* mpv-node))	int)
-   (mpv_set_property		(mpv-handle string int void*)		int)
-   (mpv-set-property-string	(mpv-handle string string)		int)
-   (mpv-set-property-async	(mpv-handle unsigned-64 string int void*)	int)
-   (mpv-get-property		(mpv-handle string int void*)		int)
-   (mpv-get-property-string	(mpv-handle string)			(* u8))
-   (mpv-get-property-osd-string	(mpv-handle string)			(* u8))
-   (mpv-get-property-async	(mpv-handle unsigned-64 string int)	int)
-   (mpv-observe-property	(mpv-handle unsigned-64 string int)	int)
-   (mpv-unobserve-property	(mpv-handle unsigned-64)		int)
-   (mpv-event-name		(int)					string)
-   (mpv-request-event		(mpv-handle int int)			int)
-   (mpv-request-log-messages	(mpv-handle string)			int)
-   (mpv_wait_event		(mpv-handle double)			(* mpv-event))
-   (mpv-wakeup			(mpv-handle)				void)
-   (mpv-set-wakeup-callback	(mpv-handle (* wakeup-cb-t) void*)	void)
-   (mpv-wait-async-requests	(mpv-handle)				void)
-   (mpv-hook-add		(mpv-handle unsigned-64 string int)	int)
-   (mpv-hook-continue		(mpv-handle unsigned-64)		int)
-   ;; deprecated
-   (mpv-get-wakeup-pipe		(mpv-handle)				int))
+  (c-function
+    (mpv-client-api-version	()				unsigned-long)
+    (mpv-error-string		(int)				string)
+    (mpv-free			(void*)				void)
+    (mpv_create			()				mpv-handle)
+    (mpv-free-node-contents	((* mpv-node))			void)
+    (mpv-event-name		(int)				string)
+    )
+
+  (c-default-function (mpv-handle (current-mpv-handle))
+    (mpv-initialize		()				int)
+    (mpv-client-name		()				string)
+    (mpv-destroy		()				void)
+    (mpv-terminate-destroy	()				void)
+    (mpv-create-client		(string)			mpv-handle)
+    (mpv-create-weak-client	(string)			mpv-handle)
+    (mpv-load-config-file	(string)			mpv-handle)
+    (mpv-get-time-us		()				integer-64)
+    (mpv_set_option		(string int void*)		int)
+    (mpv_set_option_string	(string string)			int)
+    (mpv_command		(void*)				int)
+    (mpv-command-node		((* mpv-node) (* mpv-node))	int)
+    (mpv-command-string		(string)			int)
+    (mpv-command-async		(unsigned-64 (* u8*))		int)
+    (mpv-command-node-async	(unsigned-64 (* mpv-node))	int)
+    (mpv_set_property		(string int void*)		int)
+    (mpv-set-property-string	(string string)			int)
+    (mpv-set-property-async	(unsigned-64 string int void*)	int)
+    (mpv-get-property		(string int void*)		int)
+    (mpv-get-property-string	(string)			(* u8))
+    (mpv-get-property-osd-string	(string)		(* u8))
+    (mpv-get-property-async	(unsigned-64 string int)	int)
+    (mpv-observe-property	(unsigned-64 string int)	int)
+    (mpv-unobserve-property	(unsigned-64)			int)
+    (mpv-request-event		(int int)			int)
+    (mpv-request-log-messages	(string)			int)
+    (mpv-wait-event		(double)			(* mpv-event))
+    (mpv-wakeup			()				void)
+    (mpv-set-wakeup-callback	((* wakeup-cb-t) void*)	        void)
+    (mpv-wait-async-requests	()				void)
+    (mpv-hook-add		(unsigned-64 string int)	int)
+    (mpv-hook-continue		(unsigned-64)			int)
+    ;; deprecated
+    (mpv-get-wakeup-pipe	()				int))
 
   (define current-mpv-handle (make-parameter #f))
 
@@ -275,14 +277,10 @@
       (current-mpv-handle (mpv_create))
       (current-mpv-handle)))
 
-  (define mpv-initialize
-    (lambda ()
-      (mpv_initialize (current-mpv-handle))))
-
   (define mpv-command
     (lambda args
       (let ([args/c (string-list->u8** (append args '(#f)))])
-        (let ([ret (mpv_command (current-mpv-handle) args/c)])
+        (let ([ret (mpv_command args/c)])
           (free-u8** args/c)
           ret))))
 
@@ -342,7 +340,7 @@
   (define mpv-get-property/flag
     (lambda (property)
       (alloc ([flag int])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_FLAG flag)])
+        (let ([rc (mpv-get-property property MPV_FORMAT_FLAG flag)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
@@ -351,7 +349,7 @@
   (define mpv-get-property/long
     (lambda (property)
       (alloc ([num integer-64])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_INT64 num)])
+        (let ([rc (mpv-get-property property MPV_FORMAT_INT64 num)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
@@ -360,7 +358,7 @@
   (define mpv-get-property/string
     (lambda (property)
       (alloc ([str u8*])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_STRING str)])
+        (let ([rc (mpv-get-property property MPV_FORMAT_STRING str)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             "error"
@@ -372,7 +370,7 @@
   (define mpv-get-property/node
     (lambda (property)
       (alloc ([data &data mpv-node])
-        (let ([rc (mpv-get-property (current-mpv-handle) property MPV_FORMAT_NODE data)])
+        (let ([rc (mpv-get-property property MPV_FORMAT_NODE data)])
           (if (< rc 0)
             ;; error - TODO raise an exception.
             (mpv-error-string rc)
@@ -384,23 +382,23 @@
     (lambda (option value)
       (alloc ([i &i double])
         (ftype-set! double () &i value)
-        (mpv_set_option (current-mpv-handle) option MPV_FORMAT_DOUBLE i))))
+        (mpv_set_option option MPV_FORMAT_DOUBLE i))))
 
   (define mpv-set-option/flag
     (lambda (property value)
       (alloc ([i &i int])
         (ftype-set! int () &i (if value 1 0))
-        (mpv_set_option (current-mpv-handle) property MPV_FORMAT_FLAG i))))
+        (mpv_set_option property MPV_FORMAT_FLAG i))))
 
   (define mpv-set-option/int
     (lambda (option value)
       (alloc ([i &i integer-64])
         (ftype-set! integer-64 () &i value)
-        (mpv_set_option (current-mpv-handle) option MPV_FORMAT_INT64 i))))
+        (mpv_set_option option MPV_FORMAT_INT64 i))))
 
   (define mpv-set-option/string
     (lambda (property value)
-      (mpv_set_option_string (current-mpv-handle) property value)))
+      (mpv_set_option_string property value)))
 
   (define mpv-set-option
     (lambda (option value)
@@ -416,23 +414,23 @@
     (lambda (property value)
       (alloc ([i &i double])
         (ftype-set! double () &i value)
-        (mpv_set_property (current-mpv-handle) property MPV_FORMAT_DOUBLE i))))
+        (mpv_set_property property MPV_FORMAT_DOUBLE i))))
 
   (define mpv-set-property/flag
     (lambda (property value)
       (alloc ([i &i int])
         (ftype-set! int () &i (if value 1 0))
-        (mpv_set_property (current-mpv-handle) property MPV_FORMAT_FLAG i))))
+        (mpv_set_property property MPV_FORMAT_FLAG i))))
 
   (define mpv-set-property/int
     (lambda (property value)
       (alloc ([i &i integer-64])
         (ftype-set! integer-64 () &i value)
-        (mpv_set_property (current-mpv-handle) property MPV_FORMAT_INT64 i))))
+        (mpv_set_property property MPV_FORMAT_INT64 i))))
 
   (define mpv-set-property/string
     (lambda (property value)
-      (mpv-set-property-string (current-mpv-handle) property value)))
+      (mpv-set-property-string property value)))
 
   (define mpv-set-property
     (lambda (property value)
@@ -443,7 +441,4 @@
          [(boolean? value)	mpv-set-property/flag]
          [(flonum? value)	mpv-set-property/double]))
       ((setter) property value)))
-
-  (define mpv-wait-event
-    (lambda (timeout)
-      (mpv_wait_event (current-mpv-handle) timeout))))
+  )

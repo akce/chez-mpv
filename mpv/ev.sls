@@ -10,7 +10,7 @@
 
   (define register-mpv-event-handler
     (lambda (io-callback)
-      (let* ([fd (mpv-get-wakeup-pipe (current-mpv-handle))]
+      (let* ([fd (mpv-get-wakeup-pipe)]
              [port (open-fd-input-port fd)])
         (ev-io fd (evmask 'READ)
           (lambda (w revent)
