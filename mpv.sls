@@ -352,41 +352,37 @@
       (alloc ([flag int])
         (let ([rc (mpv-get-property property (mpv-format flag) flag)])
           (if (< rc 0)
-            ;; error - TODO raise an exception.
-            "error"
-            (int->bool (foreign-ref 'int flag 0)))))))
+              (error #f (mpv-error-string rc) property)
+              (int->bool (foreign-ref 'int flag 0)))))))
 
   (define mpv-get-property/long
     (lambda (property)
       (alloc ([num integer-64])
         (let ([rc (mpv-get-property property (mpv-format int64) num)])
           (if (< rc 0)
-            ;; error - TODO raise an exception.
-            "error"
-            (foreign-ref 'integer-64 num 0))))))
+              (error #f (mpv-error-string rc) property)
+              (foreign-ref 'integer-64 num 0))))))
 
   (define mpv-get-property/string
     (lambda (property)
       (alloc ([str u8*])
         (let ([rc (mpv-get-property property (mpv-format string) str)])
           (if (< rc 0)
-            ;; error - TODO raise an exception.
-            "error"
-            (let* ([ptr (foreign-ref 'void* str 0)]
-                   [ret (u8*->string ptr)])
-              (mpv-free ptr)
-              ret))))))
+              (error #f (mpv-error-string rc) property)
+              (let* ([ptr (foreign-ref 'void* str 0)]
+                     [ret (u8*->string ptr)])
+                (mpv-free ptr)
+                ret))))))
 
   (define mpv-get-property/node
     (lambda (property)
       (alloc ([data &data mpv-node])
         (let ([rc (mpv-get-property property (mpv-format node) data)])
           (if (< rc 0)
-            ;; error - TODO raise an exception.
-            (mpv-error-string rc)
-            (let* ([ret (node->scheme &data)])
-              #;(mpv-free ptr)
-              ret))))))
+              (error #f (mpv-error-string rc) property)
+              (let* ([ret (node->scheme &data)])
+                #;(mpv-free ptr)
+                ret))))))
 
   (define mpv-set-option/double
     (lambda (option value)
