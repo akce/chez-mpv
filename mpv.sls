@@ -10,6 +10,12 @@
    mpv-get-property/string
    mpv-get-property/node
 
+   mpv-set-option/double
+   mpv-set-option/flag
+   mpv-set-option/int
+   mpv-set-option/string
+   mpv-set-option
+
    mpv-set-property/double
    mpv-set-property/flag
    mpv-set-property/int
@@ -28,8 +34,6 @@
    mpv-load-config-file
    mpv-get-time-us
    mpv-free-node-contents
-   mpv-set-option
-   mpv-set-option-string
    mpv-command
    mpv-command-node
    mpv-command-string
@@ -236,8 +240,8 @@
    (mpv-load-config-file	(mpv-handle string)			mpv-handle)
    (mpv-get-time-us		(mpv-handle)				integer-64)
    (mpv-free-node-contents	((* mpv-node))				void)
-   (mpv-set-option		(mpv-handle string int void*)		int)
-   (mpv-set-option-string	(mpv-handle string string)		int)
+   (mpv_set_option		(mpv-handle string int void*)		int)
+   (mpv_set_option_string	(mpv-handle string string)		int)
    (mpv_command			(mpv-handle void*)			int)
    (mpv-command-node		(mpv-handle (* mpv-node) (* mpv-node))	int)
    (mpv-command-string		(mpv-handle string)			int)
@@ -375,6 +379,38 @@
             (let* ([ret (node->scheme &data)])
               #;(mpv-free ptr)
               ret))))))
+
+  (define mpv-set-option/double
+    (lambda (option value)
+      (alloc ([i &i double])
+        (ftype-set! double () &i value)
+        (mpv_set_option (current-mpv-handle) option MPV_FORMAT_DOUBLE i))))
+
+  (define mpv-set-option/flag
+    (lambda (property value)
+      (alloc ([i &i int])
+        (ftype-set! int () &i (if value 1 0))
+        (mpv_set_option (current-mpv-handle) property MPV_FORMAT_FLAG i))))
+
+  (define mpv-set-option/int
+    (lambda (option value)
+      (alloc ([i &i integer-64])
+        (ftype-set! integer-64 () &i value)
+        (mpv_set_option (current-mpv-handle) option MPV_FORMAT_INT64 i))))
+
+  (define mpv-set-option/string
+    (lambda (property value)
+      (mpv_set_option_string (current-mpv-handle) property value)))
+
+  (define mpv-set-option
+    (lambda (option value)
+      (define (setter)
+        (cond
+         [(string? value)	mpv-set-option/string]
+         [(integer? value)	mpv-set-option/int]
+         [(boolean? value)	mpv-set-option/flag]
+         [(flonum? value)	mpv-set-option/double]))
+      ((setter) option value)))
 
   (define mpv-set-property/double
     (lambda (property value)
