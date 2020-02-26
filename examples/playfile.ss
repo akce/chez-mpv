@@ -17,25 +17,35 @@
   (lambda ()
     (mpv-create)
     (mpv-set-property "audio-display" #f)
+    ;; Enable video window key & mouse controls.
+    (mpv-set-option/string "input-default-bindings" "yes")
+    (mpv-set-option/string "input-vo-keyboard" "yes")
+    (mpv-set-option/flag "osc" #t)
     (mpv-initialize)
     (ev-io stdin-fd (evmask 'READ) stdin-handler)
     (register-mpv-event-handler mpv-handler)))
+
+(define quit
+  (lambda ()
+    (display "goodbye")(newline)
+    (ev-break (evbreak 'ALL))))
 
 (define mpv-handler
   (lambda (eid)
     (display (mpv-event-name eid))(newline)
     (cond
-     [(equal? eid MPV_EVENT_METADATA_UPDATE)
-      (show-metadata)])))
+     [(= eid MPV_EVENT_METADATA_UPDATE)
+      (show-metadata)]
+     [(= eid MPV_EVENT_SHUTDOWN)
+      (quit)])))
 
 (define stdin-handler
   (lambda (w rev)
     (let ([in (get-line (current-input-port))])
       (cond
        [(eof-object? in)
-        (display "goodbye")(newline)
         (ev-io-stop w)
-        (ev-break (evbreak 'ALL))]
+        (quit)]
        [else
         (case (string-ref in 0)
           [(#\i)
