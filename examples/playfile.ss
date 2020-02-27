@@ -23,6 +23,8 @@
   (lambda ()
     (mpv-create)
     (mpv-set-property "audio-display" #f)
+    ;; Default image display time is only 1 second. Change to 4 seconds.
+    (mpv-set-option/int "image-display-duration" 4)
     ;; Enable video window key & mouse controls.
     (mpv-set-option/string "input-default-bindings" "yes")
     (mpv-set-option/string "input-vo-keyboard" "yes")
