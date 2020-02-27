@@ -9,9 +9,15 @@
  (rnrs)
  (mpv)
  (mpv ev)
- (ev))
+ (ev)
+ (only (chezscheme) format))
 
 (define stdin-fd 0)
+
+;; user-defined property event type ids.
+(define time-pos-id 1)
+(define pause-id 9)
+(define tags-id 22)
 
 (define init
   (lambda ()
@@ -22,6 +28,8 @@
     (mpv-set-option/string "input-vo-keyboard" "yes")
     (mpv-set-option/flag "osc" #t)
     (mpv-initialize)
+    (mpv-observe-property pause-id "pause" (mpv-format flag))
+    (mpv-observe-property tags-id "metadata" (mpv-format node))
     (ev-io stdin-fd (evmask 'READ) stdin-handler)
     (register-mpv-event-handler mpv-handler)))
 
@@ -31,13 +39,51 @@
     (ev-break (evbreak 'ALL))))
 
 (define mpv-handler
-  (lambda (eid)
-    (display (mpv-event-name eid))(newline)
-    (cond
-     [(= eid (mpv-event-type metadata-update))
-      (show-metadata)]
-     [(= eid (mpv-event-type shutdown))
-      (quit)])))
+  (lambda (event)
+    (let ([eid (mpv-event-id event)])
+      (cond
+        [(mpv-property-event? event)
+         (let ([pid (mpv-event-reply-userdata event)])
+           (cond
+             [(= pid time-pos-id)
+              ;; Need to guard against getting false time-pos when user presses q (shutdown).
+              (when (mpv-property-event-value event)
+                (display "time position ")
+                (display (seconds->string (mpv-property-event-value event)))
+                (display "\r")	; there's lot's of these, so print on the same line.
+                )]
+             [(= pid tags-id)
+              (display "media tags ")
+              (display (mpv-property-event-value event))
+              (newline)]
+             [(= pid pause-id)
+              (display "pause state ")
+              (display (mpv-property-event-value event))
+              (newline)]
+             [else
+               (display "misc property-change: id ")(display pid)
+               (display " ")(display (mpv-property-event-name event))
+               (display " -> ")
+               (display (mpv-property-event-value event))(newline)]))]
+        [(= eid (mpv-event-type file-loaded))
+         ;; Watch the time-pos property, that way we can report playback position.
+         ;; Ignore error exception at this point.
+         (mpv-observe-property time-pos-id "time-pos" (mpv-format int64))]
+        [(= eid (mpv-event-type end-file))
+         (mpv-unobserve-property tags-id)
+         (mpv-unobserve-property time-pos-id)]
+        [(or
+           (= eid (mpv-event-type idle))
+           (= eid (mpv-event-type shutdown)))
+         (quit)]
+        [(or
+           (= eid (mpv-event-deprecated metadata-update))
+           (= eid (mpv-event-deprecated pause))
+           (= eid (mpv-event-deprecated unpause)))
+         (if #f #f)]
+        [else
+          (display "unhandled event ")
+          (display (mpv-event-name eid))(newline)]))))
 
 (define stdin-handler
   (lambda (w rev)
@@ -88,6 +134,14 @@
 (define mpv-stop
   (lambda ()
     (mpv-command "stop")))
+
+(define pad-num
+  (lambda (num)
+    (format "~2,'0d" num)))
+
+(define seconds->string
+  (lambda (secs)
+    (string-append (pad-num (div secs 3600)) ":" (pad-num (div secs 60)) ":" (pad-num (mod secs 60)))))
 
 (let ([argv (command-line)])
   (cond

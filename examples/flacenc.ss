@@ -16,7 +16,7 @@
 (define show-events
   (lambda ()
     (let loop ([ev (mpv-wait-event -1.0)])
-      (let ([eid (get-mpv-event-id ev)])
+      (let ([eid (mpv-event-id ev)])
         (cond
          [(or (fx=? eid (mpv-event-type idle)) (fx=? eid (mpv-event-type none)))
           (display "idle: finished")(newline)

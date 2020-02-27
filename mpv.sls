@@ -1,10 +1,12 @@
 ;; libmpv bindings for Chez scheme.
-;; Copyright (c) 2019 Akce. License: GPLv3, see COPYING for details.
+;; Copyright (c) 2019-2020 Akce. License: GPLv3, see COPYING for details.
 (library (mpv)
   (export
    current-mpv-handle
 
-   get-mpv-event-id
+   mpv-event? mpv-event-id mpv-event-error mpv-event-reply-userdata
+   mpv-property-event? mpv-property-event-name mpv-property-event-value
+
    mpv-get-property/flag
    mpv-get-property/long
    mpv-get-property/string
@@ -70,7 +72,7 @@
   (import
    (rnrs)
    (mpv ftypes-util)
-   (only (chezscheme) make-parameter))
+   (only (chezscheme) make-parameter make-ftype-pointer))
 
   (define load-lib (load-shared-object "libmpv.so"))
 
@@ -171,13 +173,12 @@
      [size	size_t]))
   (define-ftype mpv-byte-array* (* mpv-byte-array))
 
-  (define-ftype mpv-event
+  (define-ftype c/mpv-event
     (struct
      [event-id		int]
      [error		int]
      [reply-userdata	unsigned-64]
      [data		void*]))
-  (define-ftype mpv-event* (* mpv-event))
 
   (define-ftype mpv-event-end-file
     (struct
@@ -271,7 +272,7 @@
     (mpv-unobserve-property	(unsigned-64)			int)
     (mpv-request-event		(int int)			int)
     (mpv-request-log-messages	(string)			int)
-    (mpv-wait-event		(double)			(* mpv-event))
+    (mpv_wait_event		(double)			(* c/mpv-event))
     (mpv-wakeup			()				void)
     (mpv-set-wakeup-callback	((* wakeup-cb-t) void*)	        void)
     (mpv-wait-async-requests	()				void)
@@ -294,10 +295,6 @@
           (free-u8** args/c)
           ret))))
 
-  (define get-mpv-event-id
-    (lambda (ev)
-      (ftype-ref mpv-event (event-id) ev)))
-
   (define int->bool
     (lambda (num)
       (if (fx=? num 0)
@@ -305,12 +302,19 @@
           #t)))
 
   (define-syntax switch
-    (syntax-rules ()
+    (syntax-rules (else)
+      [(_ var (val1 body1 ...) (valn bodyn ...) ... (else bodye))
+       (let ([v var])
+         (cond
+          [(fx=? v val1) body1 ...]
+          [(fx=? v valn) bodyn ...] ...
+          [else bodye]))]
       [(_ var (val1 body1 ...) (valn bodyn ...) ...)
        (let ([v var])
          (cond
           [(fx=? v val1) body1 ...]
-          [(fx=? v valn) bodyn ...] ...))]))
+          [(fx=? v valn) bodyn ...] ...))]
+      ))
 
   (define node->scheme
     (lambda (node)
@@ -447,4 +451,55 @@
          [(boolean? value)	mpv-set-property/flag]
          [(flonum? value)	mpv-set-property/double]))
       ((setter) property value)))
+
+  (define-record-type mpv-event
+    (fields
+      id
+      error
+      reply-userdata
+      ))
+
+  (define-record-type mpv-property-event
+    (parent mpv-event)
+    (fields
+      name
+      value))
+
+  (define property-event->value
+    (lambda (prop)
+      (let ([data-ptr (ftype-ref mpv-event-property (data) prop)])
+        (switch (ftype-ref mpv-event-property (format) prop)
+          [(mpv-format double)
+           (foreign-ref 'double data-ptr 0)]
+          [(mpv-format int64)
+           (foreign-ref 'integer-64 data-ptr 0)]
+          [(mpv-format flag)
+           (int->bool (foreign-ref 'int data-ptr 0))]
+          [(mpv-format string)
+           (u8*->string data-ptr)]
+          [(mpv-format node)
+           (node->scheme (make-ftype-pointer mpv-node data-ptr))]
+          [else
+            #f]))))
+
+  (define mpv-wait-event
+    (lambda (timeout)
+      ;; c/mpv-event-data will point to the specific event object depending on c/mpv-event-eventid.
+      (let* ([ev (mpv_wait_event timeout)]
+             [eid (ftype-ref c/mpv-event (event-id) ev)]
+             [err (ftype-ref c/mpv-event (error) ev)]
+             [rud (ftype-ref c/mpv-event (reply-userdata) ev)]
+             [dat (ftype-ref c/mpv-event (data) ev)])
+        (cond
+          [(or
+             (= eid (mpv-event-type property-change))
+             (= eid (mpv-event-type get-property-reply)))
+           (let ([prop-ptr (make-ftype-pointer mpv-event-property dat)])
+             (make-mpv-property-event
+               eid err rud
+               (u8*->string (ftype-pointer-address (ftype-ref mpv-event-property (name) prop-ptr)))
+               (property-event->value prop-ptr)))]
+          [else
+            ;; TODO define records for the remaining event types.
+            (make-mpv-event eid err rud)]))))
   )

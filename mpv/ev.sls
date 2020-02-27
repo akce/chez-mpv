@@ -17,10 +17,10 @@
             (when (input-port-ready? port)
               (clear-input-port port)
               (let loop ([ev (mpv-wait-event 0.0)])
-                (let ([eid (get-mpv-event-id ev)])
-                  (cond
-                   [(= eid (mpv-event-type none))
-                    #t]
-                   [else
-                    (io-callback eid)
-                    (loop (mpv-wait-event 0.0))]))))))))))
+                (cond
+                  [(= (mpv-event-id ev) (mpv-event-type none))
+                   #t]
+                  [else
+                    (io-callback ev)
+                    (loop (mpv-wait-event 0.0))]))))))))
+  )
