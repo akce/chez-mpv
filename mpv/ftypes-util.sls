@@ -213,7 +213,7 @@
       (let loop ([i 0])
         (let ([p (foreign-ref 'void* u8** (* i (ftype-sizeof void*)))])
           (cond
-           [(fx=? p 0)
+           [(= p 0)
             ;; free containing u8** block.
             (foreign-free u8**)]
            [else
