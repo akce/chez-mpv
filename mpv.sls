@@ -74,7 +74,7 @@
    (mpv ftypes-util)
    (only (chezscheme) make-parameter make-ftype-pointer))
 
-  (define load-lib (load-shared-object "libmpv.so"))
+  (define load-lib (load-shared-object "libmpv.so.1"))
 
   (define-ftype mpv-handle void*)
 
