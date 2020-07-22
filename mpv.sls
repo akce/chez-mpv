@@ -4,8 +4,13 @@
   (export
    current-mpv-handle
 
-   mpv-event? mpv-event-id mpv-event-error mpv-event-reply-userdata
+   mpv-event? mpv-event-id mpv-event-error mpv-event-reply-userdata mpv-event-data
    mpv-property-event? mpv-property-event-name mpv-property-event-value
+
+   ;; mpv-event-end-file is only two fields, so just do as a list/pair.
+   (rename
+     (car mpv-event-end-file-reason)
+     (cdr mpv-event-end-file-error))
 
    mpv-get-property/flag
    mpv-get-property/long
@@ -457,7 +462,7 @@
       id
       error
       reply-userdata
-      ))
+      data))
 
   (define-record-type mpv-property-event
     (parent mpv-event)
@@ -496,10 +501,15 @@
              (= eid (mpv-event-type get-property-reply)))
            (let ([prop-ptr (make-ftype-pointer mpv-event-property dat)])
              (make-mpv-property-event
-               eid err rud
+               eid err rud dat
                (u8*->string (ftype-pointer-address (ftype-ref mpv-event-property (name) prop-ptr)))
                (property-event->value prop-ptr)))]
+          [(= eid (mpv-event-type end-file))
+           (let ([ptr (make-ftype-pointer mpv-event-end-file dat)])
+             (make-mpv-event eid err rud (cons
+                                           (ftype-ref mpv-event-end-file (reason) ptr)
+                                           (ftype-ref mpv-event-end-file (error) ptr))))]
           [else
             ;; TODO define records for the remaining event types.
-            (make-mpv-event eid err rud)]))))
+            (make-mpv-event eid err rud dat)]))))
   )
