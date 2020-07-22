@@ -17,10 +17,6 @@
    mpv-get-property/string
    mpv-get-property/node
 
-   mpv-set-option/double
-   mpv-set-option/flag
-   mpv-set-option/int
-   mpv-set-option/string
    mpv-set-option
 
    mpv-set-property/double
@@ -423,7 +419,12 @@
          [(integer? value)	mpv-set-option/int]
          [(boolean? value)	mpv-set-option/flag]
          [(flonum? value)	mpv-set-option/double]))
-      ((setter) option value)))
+      (let ([rc ((setter) option value)])
+        (cond
+          [(= rc (mpv-error success))
+           rc]
+          [else
+            (error #f (mpv-error-string rc) rc option value)]))))
 
   (define mpv-set-property/double
     (lambda (property value)
