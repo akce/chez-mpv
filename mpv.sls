@@ -331,9 +331,20 @@
        [(mpv-format node-map)
         (node-map->alist (ftype-ref mpv-node (u node-list) node))]
        [(mpv-format node-array)
-        (node->scheme (ftype-ref mpv-node (u node-list) node))]
+        (node-list->list (ftype-ref mpv-node (u node-list) node))]
        [(mpv-format node)
         (node->scheme (ftype-ref mpv-node (u node-list) node))])))
+
+  (define node-list->list
+    (lambda (node-list)
+      (let ([num (ftype-ref mpv-node-list (num) node-list)])
+        ;; slight optimisation: build the list from the back since we already know the size.
+        ;; Saves having to reverse the accumulated list before returning.
+        (let loop ([i (- num 1)] [acc '()])
+          (cond
+           [(< i 0) acc]
+           [else
+            (loop (- i 1) (cons (node->scheme (ftype-&ref mpv-node-list (values i) node-list)) acc))])))))
 
   (define node-map->alist
     (lambda (node-list)
