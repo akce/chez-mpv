@@ -397,7 +397,7 @@
           (if (< rc 0)
               (error #f (mpv-error-string rc) property)
               (let* ([ret (node->scheme &data)])
-                #;(mpv-free ptr)
+                (mpv-free-node-contents &data)
                 ret))))))
 
   (define mpv-set-option/double
