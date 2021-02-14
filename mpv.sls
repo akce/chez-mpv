@@ -112,7 +112,6 @@
     (start-file			6)
     (end-file			7)
     (file-loaded		8)
-    (idle			11)
     (client-message		16)
     (video-reconfig		17)
     (audio-reconfig		18)
@@ -131,6 +130,7 @@
   (define-enum mpv-event-deprecated
     (tracks-changed		9)
     (track-switched		10)
+    (idle			11)
     (pause			12)
     (unpause			13)
     (tick			14)

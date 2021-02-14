@@ -75,7 +75,7 @@
          (mpv-unobserve-property tags-id)
          (mpv-unobserve-property time-pos-id)]
         [(or
-           (= eid (mpv-event-type idle))
+           (= eid (mpv-event-deprecated idle))
            (= eid (mpv-event-type shutdown)))
          (quit)]
         [(or
