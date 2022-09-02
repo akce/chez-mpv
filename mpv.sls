@@ -5,6 +5,7 @@
    current-mpv-handle
 
    mpv-event? mpv-event-id mpv-event-error mpv-event-reply-userdata mpv-event-data
+   mpv-client-message-event? mpv-client-message-event-args
    mpv-property-event? mpv-property-event-name mpv-property-event-value
 
    ;; mpv-event-end-file is only two fields, so just do as a list/pair.
@@ -476,6 +477,11 @@
       reply-userdata
       data))
 
+  (define-record-type mpv-client-message-event
+    (parent mpv-event)
+    (fields
+      args))
+
   (define-record-type mpv-property-event
     (parent mpv-event)
     (fields
@@ -521,6 +527,11 @@
              (make-mpv-event eid err rud (cons
                                            (ftype-ref mpv-event-end-file (reason) ptr)
                                            (ftype-ref mpv-event-end-file (error) ptr))))]
+          [(= eid (mpv-event-type client-message))
+           (let ([ptr (make-ftype-pointer mpv-event-client-message dat)])
+             (make-mpv-client-message-event eid err rud dat
+               (u8**->string-list (ftype-pointer-address (ftype-ref mpv-event-client-message (args) ptr))
+                                  (ftype-ref mpv-event-client-message (num-args) ptr))))]
           [else
             ;; TODO define records for the remaining event types.
             (make-mpv-event eid err rud dat)]))))
