@@ -1,16 +1,16 @@
 # chez-mpv GNUmakefile.
-# Written by Jerry 2019-2021.
+# Written by Jerry 2019-2023.
 # SPDX-License-Identifier: Unlicense
 
 # Path to chez scheme executable.
 SCHEME = /usr/bin/chez-scheme
+SCHEMEVERSION = $(shell $(SCHEME) --version 2>&1)
 
 # Install destination directory. This should be an object directory contained in (library-directories).
 # eg, set in CHEZSCHEMELIBDIRS environment variable.
-LIBDIR = ~/lib/csv$(shell $(SCHEME) --version 2>&1)
-
-# (mpv ev) requires chez-libev.
-LIBEVDIR = $(LIBDIR)
+PREFIX = $(HOME)
+LIBDIR = $(PREFIX)/lib/csv$(SCHEMEVERSION)
+BUILDDIR = BUILD-csv$(SCHEMEVERSION)
 
 # Scheme compile flags.
 SFLAGS = -q
@@ -25,8 +25,12 @@ INSTALL = /usr/bin/install
 # PROJDIR/
 #   FFI
 #   SUBSRC ..
-#   SUBOBJ ..
-#   SUBWPO ..
+# BUILDDIR/
+#   FFIOBJ ..
+#   BSUBOBJ ..
+#   BSUBWPO ..
+#   BTOPOBJ
+#   BTOPWPO
 #
 # Where TOP is the high level library definition that imports all sub libs within PROJDIR.
 # FFI (if needed) is a C compilable lib.
@@ -45,6 +49,12 @@ TOPSRC = mpv.sls
 TOPOBJ = $(TOPSRC:.sls=.so)
 TOPWPO = $(TOPSRC:.sls=.wpo)
 
+# Built versions of scheme code above.
+BSUBOBJ = $(addprefix $(BUILDDIR)/,$(SUBOBJ))
+BSUBWPO = $(addprefix $(BUILDDIR)/,$(SUBWPO))
+BTOPOBJ = $(addprefix $(BUILDDIR)/,$(TOPOBJ))
+BTOPWPO = $(addprefix $(BUILDDIR)/,$(TOPWPO))
+
 # Installed versions of all the above.
 ISUBSRC = $(addprefix $(LIBDIR)/,$(SUBSRC))
 ISUBOBJ = $(addprefix $(LIBDIR)/,$(SUBOBJ))
@@ -55,7 +65,7 @@ ITOPWPO = $(addprefix $(LIBDIR)/,$(TOPWPO))
 
 # Tell GNU make about the files generated as a "side-effect" of building TOPWPO,
 # otherwise make will raise an error that it doesn't know how to build these.
-.SECONDARY: $(SUBWPO) $(SUBOBJ) $(TOPOBJ) $(TOPWPO)
+.SECONDARY: $(BSUBWPO) $(BSUBOBJ) $(BTOPOBJ) $(BTOPWPO)
 
 # Default to just a local build.
 all: build
@@ -64,23 +74,55 @@ all: build
 # (mpv ev) imports (mpv), we need to use that as the springboard.
 # That affects contents of .SECONDARY and dependency order in install-so.
 # This might indicate a bad project layout and something to consider in the future..
-$(PROJDIR)/ev.wpo: $(TOPSRC) $(SUBSRC)
-	echo '(reset-handler abort) (compile-imported-libraries #t) (generate-wpo-files #t) (library-directories (list "." "'$(LIBEVDIR)'")) (compile-library "$(PROJDIR)/ev.sls")' | $(SCHEME) $(SFLAGS)
+$(LIBDIR)/mpv/ev.so: $(ITOPSRC) $(ISUBSRC)
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		"(library-directories"			\
+		'  (list (cons "$(LIBDIR)" "$(LIBDIR)")))'	\
+		'(import (mpv ev))'			\
+		| $(SCHEME) $(SFLAGS)
+
+# In-place local development test compile. This is built in a separate
+# directory BUILDDIR so as to keep build files out of the way.
+$(BUILDDIR)/%.wpo: %.sls
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		"(library-directories"			\
+		'  (list (cons "." "$(BUILDDIR)")))'	\
+		'(import ($(PROJDIR)))'			\
+		| $(SCHEME) $(SFLAGS)
+
+# Installed compile. Source files must be copied to destination LIBDIR first
+# (via make rules) where this recipe compiles in the remote location.
+# This rule is available but not really necessary given that apps should do
+# their own whole program compilation and optimisations..
+# ie, make install-src should be sufficient.
+%.wpo: %.sls
+	echo	\
+		"(reset-handler abort)"			\
+		"(compile-imported-libraries #t)"	\
+		"(generate-wpo-files #t)"		\
+		'(library-directories "$(LIBDIR)")'	\
+		'(import ($(PROJDIR)))'			\
+		| $(SCHEME) $(SFLAGS)
 
 $(LIBDIR)/%: %
-	$(INSTALL) -p -D "$<" "$@"
+	$(INSTALL) -m u=rw,go=r,a-s -p -D "$<" "$@"
 
-build: $(PROJDIR)/ev.wpo
+build: $(BTOPWPO)
 
-# Default install target is for everything.
-install: install-so install-src
+install: install-src
 
-install-so: $(ISUBWPO) $(ISUBOBJ) $(ITOPWPO) $(ITOPOBJ)
+install-so: install-src $(ISUBWPO) $(ISUBOBJ) $(ITOPWPO) $(ITOPOBJ)
 
 install-src: $(ITOPSRC) $(ISUBSRC)
 
 clean:
-	$(RM) $(TOPOBJ) $(TOPWPO) $(SUBOBJ) $(SUBWPO)
+	$(RM) -r $(BUILDDIR)
 
 clean-install:
 	$(RM) $(ITOPOBJ) $(ITOPWPO) $(ISUBOBJ) $(ISUBWPO) $(ITOPSRC) $(ISUBSRC)
