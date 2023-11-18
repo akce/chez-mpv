@@ -369,7 +369,7 @@
       (alloc ([flag int])
         (let ([rc (mpv-get-property property (mpv-format flag) flag)])
           (if (< rc 0)
-              (error #f (mpv-error-string rc) property)
+              (error 'mpv-get-property/flag (mpv-error-string rc) property)
               (int->bool (foreign-ref 'int flag 0)))))))
 
   (define mpv-get-property/long
@@ -377,7 +377,7 @@
       (alloc ([num integer-64])
         (let ([rc (mpv-get-property property (mpv-format int64) num)])
           (if (< rc 0)
-              (error #f (mpv-error-string rc) property)
+              (error 'mpv-get-property/long (mpv-error-string rc) property)
               (foreign-ref 'integer-64 num 0))))))
 
   (define mpv-get-property/string
@@ -385,7 +385,7 @@
       (alloc ([str u8*])
         (let ([rc (mpv-get-property property (mpv-format string) str)])
           (if (< rc 0)
-              (error #f (mpv-error-string rc) property)
+              (error 'mpv-get-property/string (mpv-error-string rc) property)
               (let* ([ptr (foreign-ref 'void* str 0)]
                      [ret (u8*->string ptr)])
                 (mpv-free ptr)
@@ -396,7 +396,7 @@
       (alloc ([data &data mpv-node])
         (let ([rc (mpv-get-property property (mpv-format node) data)])
           (if (< rc 0)
-              (error #f (mpv-error-string rc) property)
+              (error 'mpv-get-property/node (mpv-error-string rc) property)
               (let* ([ret (node->scheme &data)])
                 (mpv-free-node-contents &data)
                 ret))))))
@@ -436,7 +436,7 @@
           [(= rc (mpv-error success))
            rc]
           [else
-            (error #f (mpv-error-string rc) rc option value)]))))
+            (error 'mpv-set-option (mpv-error-string rc) rc option value)]))))
 
   (define mpv-set-property/double
     (lambda (property value)
