@@ -1,5 +1,6 @@
-;; libmpv bindings for Chez scheme.
-;; Copyright (c) 2019-2020 Akce. License: GPLv3, see COPYING for details.
+;; libmpv bindings for Chez Scheme.
+;; Copyright (c) 2019-2023 Jerry
+;; SPDX-License-Identifier: GPL-3.0-or-later
 (library (mpv)
   (export
    current-mpv-handle
@@ -74,7 +75,7 @@
   (import
    (rnrs)
    (mpv ftypes-util)
-   (only (chezscheme) make-parameter make-ftype-pointer))
+   (only (chezscheme) iota make-parameter))
 
   (define load-lib (load-shared-object "libmpv.so.2"))
 
@@ -214,7 +215,7 @@
       [u
        (union
         [string	u8*]
-        [flag		int]
+        [flag		boolean]
         [int64		integer-64]
         [double	double]
         [node-list	(* mpv-node-list)]
@@ -256,14 +257,14 @@
     (mpv-create-weak-client	(string)			mpv-handle)
     (mpv-load-config-file	(string)			mpv-handle)
     (mpv-get-time-us		()				integer-64)
-    (mpv_set_option		(string int void*)		int)
+    (mpv_set_option		(string int (* mpv-node))	int)
     (mpv_set_option_string	(string string)			int)
-    (mpv_command		(void*)				int)
+    (mpv_command		((* u8*))			int)
     (mpv-command-node		((* mpv-node) (* mpv-node))	int)
     (mpv-command-string		(string)			int)
     (mpv-command-async		(unsigned-64 (* u8*))		int)
     (mpv-command-node-async	(unsigned-64 (* mpv-node))	int)
-    (mpv_set_property		(string int void*)		int)
+    (mpv_set_property		(string int (* mpv-node))	int)
     (mpv-set-property-string	(string string)			int)
     (mpv-set-property-async	(unsigned-64 string int void*)	int)
     (mpv-get-property		(string int void*)		int)
@@ -292,6 +293,7 @@
 
   (define mpv-command
     (lambda args
+      ;; TODO the ftypes wrapper should hide the null (#f) terminator.
       (let ([args/c (string-list->u8** (append args '(#f)))])
         (let ([ret (mpv_command args/c)])
           (free-u8** args/c)
@@ -324,7 +326,7 @@
        [(mpv-format string)
         (u8*->string (ftype-pointer-address (ftype-ref mpv-node (u string) node)))]
        [(mpv-format flag)
-        (int->bool (ftype-ref mpv-node (u flag) node))]
+        (ftype-ref mpv-node (u flag) node)]
        [(mpv-format int64)
         (ftype-ref mpv-node (u int64) node)]
        [(mpv-format double)
@@ -347,6 +349,19 @@
            [else
             (loop (- i 1) (cons (node->scheme (ftype-&ref mpv-node-list (values i) node-list)) acc))])))))
 
+  ;; Use a restricted form of alist, suitable for mpv where key can only be an atom of string or some number.
+  (define alist?
+    (lambda (obj)
+      (and
+        (list? obj)
+        (for-all
+          (lambda (p)
+            (and (pair? p)
+                 ;; for mpv, key must be a number or string.
+                 (or (number? (car p))
+                     (string? (car p)))))
+          obj))))
+
   (define node-map->alist
     (lambda (node-list)
       (let ([num (ftype-ref mpv-node-list (num) node-list)])
@@ -366,7 +381,7 @@
 
   (define mpv-get-property/flag
     (lambda (property)
-      (alloc ([flag int])
+      (auto-ptr ([flag int])
         (let ([rc (mpv-get-property property (mpv-format flag) flag)])
           (if (< rc 0)
               (error 'mpv-get-property/flag (mpv-error-string rc) property)
@@ -374,7 +389,7 @@
 
   (define mpv-get-property/long
     (lambda (property)
-      (alloc ([num integer-64])
+      (auto-ptr ([num integer-64])
         (let ([rc (mpv-get-property property (mpv-format int64) num)])
           (if (< rc 0)
               (error 'mpv-get-property/long (mpv-error-string rc) property)
@@ -382,7 +397,7 @@
 
   (define mpv-get-property/string
     (lambda (property)
-      (alloc ([str u8*])
+      (auto-ptr ([str u8*])
         (let ([rc (mpv-get-property property (mpv-format string) str)])
           (if (< rc 0)
               (error 'mpv-get-property/string (mpv-error-string rc) property)
@@ -393,7 +408,7 @@
 
   (define mpv-get-property/node
     (lambda (property)
-      (alloc ([data &data mpv-node])
+      (auto-ptr ([data &data mpv-node])
         (let ([rc (mpv-get-property property (mpv-format node) data)])
           (if (< rc 0)
               (error 'mpv-get-property/node (mpv-error-string rc) property)
@@ -401,36 +416,204 @@
                 (mpv-free-node-contents &data)
                 ret))))))
 
+  ;;;; Start: mpv-node setters.
+  ;; These all allocate their own mpv-node, set it to the appropriate mpv-format,
+  ;; and then pass through to the wanted property or option setter.
+
+  (define bool-node-set!
+    (lambda (node* val)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format flag))
+      (ftype-set! mpv-node (u flag) node* val)))
+
+  (define bool->node
+    (lambda (val)
+      (let ([p (alloc-node)])
+        (bool-node-set! p val)
+        p)))
+
+  (define double-node-set!
+    (lambda (node* val)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format double))
+      (ftype-set! mpv-node (u double) node* val)))
+
+  (define double->node
+    (lambda (val)
+      (let ([p (alloc-node)])
+        (double-node-set! p val)
+        p)))
+
+  (define int-node-set!
+    (lambda (node* val)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format int64))
+      (ftype-set! mpv-node (u int64) node* val)))
+
+  (define int->node
+    (lambda (val)
+      (let ([p (alloc-node)])
+        (int-node-set! p val)
+        p)))
+
+  (define string-node-set!
+    (lambda (node* val)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format string))
+      (ftype-set! mpv-node (u string) node* (string->u8* val))))
+
+  (define string->node
+    (lambda (val)
+      (let ([p (alloc-node)])
+        (string-node-set! p val)
+        p)))
+
+  (define list-node-set!
+    (lambda (node* val)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format node-array))
+      (ftype-set! mpv-node (u node-list) node* (alloc-node-list val))))
+
+  (define list->node
+    (lambda (value-list)
+      (let ([p (alloc-node)])
+         (list-node-set! p value-list)
+         p)))
+
+  (define alist-node-set!
+    (lambda (node* alist)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format node-map))
+      (ftype-set! mpv-node (u node-list) node*
+        (alloc-node-list (map car alist) (map cdr alist)))))
+
+  (define alist->node
+    (lambda (alist)
+      (let ([p (alloc-node (mpv-format node-map))])
+        (alist-node-set! p alist)
+        p)))
+
+  (define map-node-set!
+    (lambda (node* val)
+      (ftype-set! mpv-node (mpv-format) node* (mpv-format node-map))
+      (ftype-set! mpv-node (u node-list) node* val)))
+
+  ;; Allocate mpv-node memory, either for one node (the default) or multiple if count is given.
+  (define alloc-node
+    (case-lambda
+      [()
+       (make-ftype-pointer mpv-node (foreign-alloc (ftype-sizeof mpv-node)))]
+      [(count)
+       (make-ftype-pointer mpv-node (foreign-alloc (fx* (ftype-sizeof mpv-node) count)))]))
+
+  (define alloc-node-list
+    (case-lambda
+      [(value-list)
+       (alloc-node-list #f value-list)]
+      [(key-list value-list)
+       (let* ([p (make-ftype-pointer mpv-node-list (foreign-alloc (ftype-sizeof mpv-node-list)))]
+              [vlen (length value-list)]
+              ;; vns = shorthand for values nodes.
+              [vns (alloc-node vlen)])
+         (for-each
+           (lambda (i v)
+             (node-set!
+               (ftype-&ref mpv-node () vns i)
+               v))
+           (iota vlen) value-list)
+         (ftype-set! mpv-node-list (num) p vlen)
+         (ftype-set! mpv-node-list (values) p vns)
+         (ftype-set! mpv-node-list (keys) p
+           (cond
+             [key-list
+               (let* ([klen (length key-list)]
+                      [key-ptrs (make-ftype-pointer u8* (foreign-alloc (fx* (ftype-sizeof u8*) klen)))])
+                 (for-each
+                   (lambda (i str)
+                     (ftype-set! u8* () key-ptrs i (string->u8* str)))
+                   (iota klen) key-list)
+                 key-ptrs)]
+             [else
+               (make-ftype-pointer u8* 0)]))
+         p)]))
+
+  (define free-node-list
+    (lambda (node-list)
+      (define nums (iota (ftype-ref mpv-node-list (num) node-list)))
+      (unless (null? nums)
+        (let ([vns (ftype-ref mpv-node-list (values) node-list)]
+              [key-ptrs (ftype-ref mpv-node-list (keys) node-list)])
+           (for-each
+             (lambda (i)
+               (free-node-contents (ftype-&ref mpv-node () vns i)))
+             nums)
+           (ftype-free vns)
+           (unless (ftype-pointer-null? key-ptrs)
+             (for-each
+               (lambda (i)
+                 (ftype-free (ftype-ref u8* () key-ptrs i)))
+               nums)
+             (ftype-free key-ptrs)
+             )))
+      (ftype-free node-list)))
+
+  (define free-node-contents
+    (lambda (node)
+      (let ([f (ftype-ref mpv-node (mpv-format) node)])
+        (cond
+          [(fx=? f (mpv-format string))
+           (ftype-free (ftype-ref mpv-node (u string) node))]
+          [(fx=? f (mpv-format node-array))
+           (free-node-list (ftype-ref mpv-node (u node-list) node))]
+          [(fx=? f (mpv-format node-map))
+           (free-node-list (ftype-ref mpv-node (u node-list) node))]))))
+
+  (define free-node
+    (lambda (node)
+      (free-node-contents node)
+      (ftype-free node)))
+
+  (define set-and-free
+    (lambda (setter property value-node)
+      (dynamic-wind
+        (lambda () #f)
+        (lambda ()
+          (setter property (mpv-format node) value-node))
+        (lambda ()
+          (free-node value-node)))))
+
   (define mpv-set-option/double
     (lambda (option value)
-      (alloc ([i &i double])
-        (ftype-set! double () &i value)
-        (mpv_set_option option (mpv-format double) i))))
+      (set-and-free mpv_set_option option (double->node value))))
 
   (define mpv-set-option/flag
-    (lambda (property value)
-      (alloc ([i &i int])
-        (ftype-set! int () &i (if value 1 0))
-        (mpv_set_option property (mpv-format flag) i))))
+    (lambda (option value)
+      (set-and-free mpv_set_option option (bool->node value))))
 
   (define mpv-set-option/int
     (lambda (option value)
-      (alloc ([i &i integer-64])
-        (ftype-set! integer-64 () &i value)
-        (mpv_set_option option (mpv-format int64) i))))
+      (set-and-free mpv_set_option option (int->node value))))
 
   (define mpv-set-option/string
-    (lambda (property value)
-      (mpv_set_option_string property value)))
+    (lambda (option value)
+      (set-and-free mpv_set_option option (string->node value))))
 
+  (define mpv-set-option/array
+    (lambda (option value)
+      (set-and-free mpv_set_option option (list->node value))))
+
+  (define mpv-set-option/alist
+    (lambda (option value)
+      (set-and-free mpv_set_option option (alist->node value))))
+
+  ;; mpv-set-option sets the option value based on type of the given value.
   (define mpv-set-option
     (lambda (option value)
       (define (setter)
+        ;; Checking order matters: flonum before integer, and alist before list.
         (cond
-         [(string? value)	mpv-set-option/string]
-         [(integer? value)	mpv-set-option/int]
-         [(boolean? value)	mpv-set-option/flag]
-         [(flonum? value)	mpv-set-option/double]))
+          [(string? value)	mpv-set-option/string]
+          [(boolean? value)	mpv-set-option/flag]
+          [(flonum? value)	mpv-set-option/double]
+          [(integer? value)	mpv-set-option/int]
+          [(alist? value)	mpv-set-option/alist]
+          [(list? value)		mpv-set-option/array]
+          [else
+            (error 'mpv-set-option "Unknown option type" option value)]))
       (let ([rc ((setter) option value)])
         (cond
           [(= rc (mpv-error success))
@@ -440,35 +623,60 @@
 
   (define mpv-set-property/double
     (lambda (property value)
-      (alloc ([i &i double])
-        (ftype-set! double () &i value)
-        (mpv_set_property property (mpv-format double) i))))
+      (set-and-free mpv_set_property property (double->node value))))
 
   (define mpv-set-property/flag
     (lambda (property value)
-      (alloc ([i &i int])
-        (ftype-set! int () &i (if value 1 0))
-        (mpv_set_property property (mpv-format flag) i))))
+      (set-and-free mpv_set_property property (bool->node value))))
 
   (define mpv-set-property/int
     (lambda (property value)
-      (alloc ([i &i integer-64])
-        (ftype-set! integer-64 () &i value)
-        (mpv_set_property property (mpv-format int64) i))))
+      (set-and-free mpv_set_property property (int->node value))))
 
   (define mpv-set-property/string
     (lambda (property value)
-      (mpv-set-property-string property value)))
+      (set-and-free mpv_set_property property (string->node value))))
+
+  (define mpv-set-property/array
+    (lambda (property value)
+      (set-and-free mpv_set_property property (list->node value))))
+
+  (define mpv-set-property/alist
+    (lambda (property value)
+      (set-and-free mpv_set_property property (alist->node value))))
 
   (define mpv-set-property
     (lambda (property value)
       (define (setter)
+        ;; Checking order matters: flonum before integer, and alist before list.
         (cond
-         [(string? value)	mpv-set-property/string]
-         [(integer? value)	mpv-set-property/int]
-         [(boolean? value)	mpv-set-property/flag]
-         [(flonum? value)	mpv-set-property/double]))
+          [(string? value)	mpv-set-property/string]
+          [(boolean? value)	mpv-set-property/flag]
+          [(flonum? value)	mpv-set-property/double]
+          [(integer? value)	mpv-set-property/int]
+          [(alist? value)	mpv-set-property/alist]
+          [(list? value)	mpv-set-property/array]
+          [else
+            (error 'mpv-set-property "Unknown property type" property value)]))
       ((setter) property value)))
+
+  ;; Write value into the given mpv-node ftype pointer.
+  (define node-set!
+    (lambda (node* value)
+      (define (setter)
+        ;; Checking order matters: flonum before integer, and alist before list.
+        (cond
+          [(string? value)	string-node-set!]
+          [(boolean? value)	bool-node-set!]
+          [(flonum? value)	double-node-set!]
+          [(integer? value)	int-node-set!]
+          [(alist? value)	alist-node-set!]
+          [(list? value)	list-node-set!]
+          [else
+            (error 'mpv-node-set! "Unknown node value type" node* value)]))
+      ((setter) node* value)))
+
+  ;;;; End: mpv-node setters.
 
   (define-record-type mpv-event
     (fields

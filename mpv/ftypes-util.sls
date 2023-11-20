@@ -1,19 +1,22 @@
 ;; ftypes util functions chez scheme.
-;; Copyright (c) 2019-2020 Akce. License: GPLv3, see COPYING for details.
+;; Copyright (c) 2019-2023 Jerry
+;; SPDX-License-Identifier: GPL-3.0-or-later
 (library (mpv ftypes-util)
   (export
    u8 u8* u8**
-   alloc
+   auto-ptr
    c-function c-default-function
    define-enum
    locate-library-object
    ;; byte/string array handling functions.
    u8*->string u8**->string-list
    string->u8* string-list->u8**
+   ftype-free
    free-u8**
    ;; Chez scheme re-exports. Saves client code from having to import these themselves.
    define-ftype foreign-alloc foreign-free foreign-ref
-   ftype-pointer-address ftype-&ref ftype-ref ftype-set! ftype-sizeof load-shared-object)
+   ftype-pointer-address ftype-pointer-null? ftype-&ref ftype-ref ftype-set! ftype-sizeof make-ftype-pointer
+   load-shared-object)
   (import
    (chezscheme))
 
@@ -21,31 +24,27 @@
   (define-ftype u8* (* u8))
   (define-ftype u8** (* u8*))
 
-  ;; [syntax] (alloc ((var varptr type)) ...)
-  (define-syntax alloc
+  ;; [syntax] (auto-ptr ((var ?varptr? type)) ...)
+  (define-syntax auto-ptr
     (syntax-rules ()
-      [(_ ((var type) ...) first rest ...)
+      [(_ ([var type] ...) body body* ...)
        (let ([var (foreign-alloc (ftype-sizeof type))] ...)
-         (let ([r (begin first rest ...)])
-           (foreign-free var) ...
-           r))]
-      [(_ ((var varptr type) ...) first rest ...)
+         (dynamic-wind
+           (lambda () #f)
+           (lambda ()
+             body
+             body* ...)
+           (lambda ()
+             (foreign-free var) ...)))]
+      [(_ ((var varptr type) ...) body body* ...)
        (let ([var (foreign-alloc (ftype-sizeof type))] ...)
          (let ([varptr (make-ftype-pointer type var)] ...)
-           (let ([r (begin first rest ...)])
-             ;; make-ftype-pointer implicitly locks var, so manually unlock before free.
-             (unlock-object var) ...
-             (foreign-free var) ...
-             r)))]
-      [(_ ((var varptr type num) ...) first rest ...)
-       ;; Ensure num is at least 1, that's a requirement of foreign-alloc.
-       (let ([var (foreign-alloc (* (if (= num 0) 1 num) (ftype-sizeof type)))] ...)
-         (let ([varptr (make-ftype-pointer type var)] ...)
-           (let ([r (begin first rest ...)])
-             ;; make-ftype-pointer implicitly locks var, so manually unlock before free.
-             (unlock-object var) ...
-             (foreign-free var) ...
-             r)))]))
+           (dynamic-wind
+             (lambda () #f)
+             (lambda ()
+               body body* ...)
+             (lambda ()
+               (foreign-free var) ...))))]))
 
   (meta define string-map
         (lambda (func str)
@@ -183,12 +182,12 @@
              [len (bytevector-length bv)])
         (let ([ret
                (do ([i 0 (fx+ i 1)]
-                    [fv (foreign-alloc (fx+ 1 len))
+                    [fv (make-ftype-pointer u8 (foreign-alloc (fx+ 1 len)))
                         (begin
-                          (foreign-set! 'unsigned-8 fv i (bytevector-u8-ref bv i))
+                          (ftype-set! u8 () fv i (bytevector-u8-ref bv i))
                           fv)])
-                   ((= i len) fv))])
-          (foreign-set! 'unsigned-8 ret len 0)	;; null terminate.
+                   ((fx=? i len) fv))])
+          (ftype-set! u8 () ret len 0)	;; null terminate.
           ret))))
 
   (define string-list->u8**
@@ -197,34 +196,38 @@
         (lambda (str)
           (if str
             (string->u8* str)
-            0)))
-      (let ([len (length str*)]
-            [ptr-sz (ftype-sizeof void*)])
-        (do ([i 0 (+ i 1)]
-             [v (foreign-alloc (* len ptr-sz))
+            (make-ftype-pointer u8 0))))
+      (let ([len (length str*)])
+        (do ([i 0 (fx+ i 1)]
+             [v (make-ftype-pointer u8* (foreign-alloc (fx* len (ftype-sizeof u8*))))
                 (let ([fstr (string->u8*/null (list-ref str* i))])
-                  (foreign-set! 'void* v (* i ptr-sz) fstr)
+                  (ftype-set! u8* () v i fstr)
                   v)])
-            ((= i len) v)))))
+            ((fx=? i len) v)))))
+
+  (define ftype-free
+    (lambda (f)
+      (foreign-free (ftype-pointer-address f))))
 
   (define free-u8**
     (case-lambda
-     ([u8**]
-      (let loop ([i 0])
-        (let ([p (foreign-ref 'void* u8** (* i (ftype-sizeof void*)))])
-          (cond
-           [(= p 0)
-            ;; free containing u8** block.
-            (foreign-free u8**)]
-           [else
-            ;; free individual u8 pointers.
-            (foreign-free p)
-            (loop (fx+ i 1))]))))
-     ([u8** len]
-      ;; free individual u8 pointers.
-      (for-each
-       (lambda (i)
-         (foreign-free (foreign-ref 'void* u8** (* i (ftype-sizeof void*)))))
-       (iota len))
-      ;; free containing u8** block.
-      (foreign-free u8**)))))
+      ([obj]
+       (let loop ([i 0])
+         (let ([p (ftype-ref u8* () obj i)])
+           (cond
+             [(ftype-pointer-null? p)
+              ;; free containing u8** block.
+              (ftype-free obj)]
+             [else
+               ;; free individual u8 pointers.
+               (ftype-free p)
+               (loop (fx+ i 1))]))))
+      ([obj len]
+       ;; free individual u8 pointers.
+       (for-each
+         (lambda (i)
+           (ftype-free (ftype-ref u8* () obj i)))
+         (iota len))
+       ;; free containing obj block.
+       (ftype-free obj))))
+  )
