@@ -14,6 +14,7 @@
      (car mpv-event-end-file-reason)
      (cdr mpv-event-end-file-error))
 
+   mpv-get-property/double
    mpv-get-property/flag
    mpv-get-property/long
    mpv-get-property/string
@@ -378,6 +379,14 @@
                             (node->scheme
                              (ftype-&ref mpv-node-list (values i) node-list)))
                            acc))])))))
+
+  (define mpv-get-property/double
+    (lambda (property)
+      (auto-ptr ([num double])
+        (let ([rc (mpv-get-property property (mpv-format double) num)])
+          (if (< rc 0)
+              (error 'mpv-get-property/double (mpv-error-string rc) property)
+              (foreign-ref 'double num 0))))))
 
   (define mpv-get-property/flag
     (lambda (property)
